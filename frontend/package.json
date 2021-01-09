@@ -1,0 +1,17 @@
+{
+  "name": "drawing-app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "private": true,
+  "workspaces": [
+    "atrament",
+    "web-client"
+  ],
+  "scripts": {
+    "start": "yarn --cwd web-client start"
+  },
+  "dependencies": {
+    "styled-components": "^5.2.1"
+  }
+}
