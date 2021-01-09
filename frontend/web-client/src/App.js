@@ -74,6 +74,8 @@ function UploadImage() {
 }
 
 function Canvas() {
+  const [color] = React.useContext(Context.ActiveColorContext)
+
   const canvasRef = React.useRef();
   React.useEffect(() => {
     const canvas = canvasRef.current
@@ -84,7 +86,9 @@ function Canvas() {
       width: canvas.offsetWidth,
       height: canvas.offsetHeight,
     });
-  }, []);
+
+    atrament.color = color.hex || color
+  }, [color]);
 
   return (<canvas ref={canvasRef}></canvas>)
 }
