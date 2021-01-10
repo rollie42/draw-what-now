@@ -1,5 +1,6 @@
 import React from 'react'
 import styled from 'styled-components'
+import css from 'styled-components'
 import { ChromePicker } from 'react-color'
 import * as Context from '../Context'
 
@@ -20,12 +21,21 @@ const SVG = styled.svg`
     width: 30px;
     height: 30px;
     margin: 0px 5px;
+    padding: 3px;
+    ${props => props.selected && `background-color: #222222;`}
 `
 
 function ColorCircle(props) {
+    const [color, setColor] = React.useContext(Context.ActiveColorContext)
+    if (color.hex == props.color) {
+        console.log("Same!")
+    } else {
+        console.log(color.hex)
+        console.log(props.color)
+    }
     return (
-        <SVG>
-            <circle cx="15" cy="15" r="15" stroke={props.color} stroke-width="1" fill={props.color} />
+        <SVG onClick={() => setColor({ hex: props.color })} selected={color.hex == props.color}>
+            <circle cx="15" cy="15" r="15" stroke={props.color} strokeWidth="1" fill={props.color} />
         </SVG>
     )
 }
@@ -39,29 +49,50 @@ const ColorPaletteContainer = styled.div`
     margin-top: 8px;
 `
 
+const Label = styled.div`
+`
+
 function ColorPalette() {
     const [color, setColor] = React.useContext(Context.ActiveColorContext)
-    console.log(color)
+    const [colorPalette] = React.useContext(Context.ColorPalette)
 
     return (
         <ColorPaletteContainer>
-            <div>Palette</div>
+            <Label>Palette</Label>
             <ColorCircleContainer>
-                <ColorCircle color={color.hex} />
-                <ColorCircle color="green" />
+                {colorPalette.map((value) => {
+                    return <ColorCircle color={value} />
+                })}
             </ColorCircleContainer>
         </ColorPaletteContainer>
     )
 }
 
+const StrokeWidthContainer = styled.div`
+`
+
+const StrokeWidthValue = styled.input`
+    width: 20px;
+`
+
+function StrokeWidth() {
+    const [brushWidth, setBrushWidth] = React.useContext(Context.BrushWidthContext)
+
+    return (
+        <StrokeWidthContainer>
+            <Label>Stroke width</Label>
+            <StrokeWidthValue value={brushWidth} onChange={(e) => setBrushWidth(e.value)}></StrokeWidthValue>
+        </StrokeWidthContainer>
+    )
+}
 export default function DrawingControls() {
     const [color, setColor] = React.useContext(Context.ActiveColorContext)
-    console.log('Color: ' + color)
     return (
         <Container>
             <ControlPanel>
                 <ChromePicker disableAlpha={true} color={color} onChange={h => setColor(h)} />
                 <ColorPalette />
+                <StrokeWidth />
             </ControlPanel>
         </Container>
     )

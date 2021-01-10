@@ -1,6 +1,6 @@
 import logo from './logo.svg';
 import './App.css';
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import Atrament from '@drawing-app/atrament'
 import * as GameApi from './GameApi'
 import * as Context from './Context'
@@ -49,7 +49,6 @@ function CreateGame() {
 
 function UserInfo() {
   const [user] = React.useContext(Context.UserContext)
-  console.log(user)
   return (
     <div>
       <span>User: {user ? user.name : '??'}</span>
@@ -73,24 +72,55 @@ function UploadImage() {
   )
 }
 
+var atrament = null
+
 function Canvas() {
   const [color] = React.useContext(Context.ActiveColorContext)
+  const [colorPalette, setColorPalette] = React.useContext(Context.ColorPalette)
+  const [brushWidth, setBrushWidth] = React.useContext(Context.BrushWidthContext)
+
+  const [lastStroke, setLastStroke] = React.useState(null)
+
 
   const canvasRef = React.useRef();
   React.useEffect(() => {
-    const canvas = canvasRef.current
-    console.log('Canvas: ' + canvas)
-    canvas.style.cursor = 'crosshair';
-    // instantiate Atrament
-    const atrament = new Atrament(canvas, {
-      width: canvas.offsetWidth,
-      height: canvas.offsetHeight,
-    });
+    if (atrament === null) {
+      // instantiate Atrament
+      const canvas = canvasRef.current
+      canvas.style.cursor = 'crosshair'
+      atrament = new Atrament(canvas, {
+        width: canvas.offsetWidth,
+        height: canvas.offsetHeight,
+      });
+      atrament.recordStrokes = true
+
+      atrament.addEventListener('strokerecorded', ({ stroke }) => {
+        setLastStroke(stroke)
+      });
+    }
 
     atrament.color = color.hex || color
-  }, [color]);
+    atrament.weight = brushWidth
 
-  return (<canvas ref={canvasRef}></canvas>)
+
+
+  }, [color, colorPalette, brushWidth]);
+
+  useEffect(() => {
+    if (lastStroke !== null && !colorPalette.includes(lastStroke.color)) {
+      const arr = [...colorPalette, lastStroke.color]
+      setColorPalette(arr)
+    }
+  }, [colorPalette, lastStroke])
+
+  return (<canvas onWheel={(e) => {
+    const d = brushWidth < 14 ? 1 : 2
+    if (e.deltaY < 0) {
+      setBrushWidth(brushWidth + d)
+    } else if (e.deltaY > 0 && brushWidth > 1) {
+      setBrushWidth(brushWidth - d)
+    }
+  }} ref={canvasRef}></canvas>)
 }
 
 const Container = styled.div`
