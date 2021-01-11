@@ -1,6 +1,6 @@
 import logo from './logo.svg';
 import './App.css';
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react'
 import Atrament from '@drawing-app/atrament'
 import * as GameApi from './GameApi'
 import * as Context from './Context'
@@ -11,68 +11,36 @@ import MainContainer from './Components/MainContainer'
 import TaskList from './Components/TaskList'
 import TopBar from './Components/TopBar'
 
-const LoginBtn = styled.button`
+
+const DoneButtonContainer = styled.div`
+  position: fixed;
+  top: 80%;
+  left: 80%;
 `
 
-function Login() {
-  const [userName, setUserName] = React.useState("")
-  const [, setUser] = React.useContext(Context.UserContext)
 
-  const sendRequest = useCallback(async () => {
-    const user = await GameApi.Login(userName)
-    console.log(user)
-    setUser(user)
-  })
-
-  return (
-    <div>
-      <input type="text" value={userName} onChange={e => setUserName(e.target.value)}></input>
-      <LoginBtn onClick={sendRequest}>Login</LoginBtn>
-    </div>
-  )
-}
-
-function CreateGame() {
-  const [gameName, setGameName] = React.useState("")
-
-  const sendRequest = useCallback(async () => {
-    await GameApi.CreateGame(gameName)
-  })
-
-  return (
-    <div>
-      <input type="text" value={gameName} onChange={e => setGameName(e.target.value)}></input>
-      <button onClick={sendRequest}>Create Game</button>
-    </div>
-  )
-}
-
-function UserInfo() {
-  const [user] = React.useContext(Context.UserContext)
-  return (
-    <div>
-      <span>User: {user ? user.name : '??'}</span>
-    </div>
-  )
-}
-
-function UploadImage() {
+function DoneButton() {
   const [user] = React.useContext(Context.UserContext)
   const [activePage] = React.useContext(Context.ActivePageContext)
-  const imageData = null
 
-  const handler = useCallback(async () => {
-    await GameApi.UploadImage(imageData, user)
-  })
+  const handler = async () => {
+    await GameApi.UploadDrawing(atrament.toImage(), user)
+  }
 
   return (
-    <div>
+    <DoneButtonContainer>
       <button onClick={handler}>Upload Image</button>
-    </div>
+    </DoneButtonContainer>
   )
 }
 
 var atrament = null
+
+const ConvasContainer = styled.canvas`
+  background: url('bg.jpg');
+  flex: 1;
+  margin: 20px 10px;
+`
 
 function Canvas() {
   const [color] = React.useContext(Context.ActiveColorContext)
@@ -97,13 +65,19 @@ function Canvas() {
       atrament.addEventListener('strokerecorded', ({ stroke }) => {
         setLastStroke(stroke)
       });
+
+      const keydownHandler = (e) => {
+        if (e.ctrlKey && e.key === 'z') {
+          console.log('undo?')
+          atrament.undo()
+        }
+      }
+
+      window.addEventListener('keydown', keydownHandler)
     }
 
     atrament.color = color.hex || color
     atrament.weight = brushWidth
-
-
-
   }, [color, colorPalette, brushWidth]);
 
   useEffect(() => {
@@ -113,21 +87,34 @@ function Canvas() {
     }
   }, [colorPalette, lastStroke])
 
-  return (<canvas onWheel={(e) => {
+  const wheelHandler = (e) => {
     const d = brushWidth < 14 ? 1 : 2
     if (e.deltaY < 0) {
       setBrushWidth(brushWidth + d)
     } else if (e.deltaY > 0 && brushWidth > 1) {
       setBrushWidth(brushWidth - d)
     }
-  }} ref={canvasRef}></canvas>)
+  }
+
+
+
+  return (
+    <ConvasContainer onWheel={wheelHandler} ref={canvasRef}>
+    </ConvasContainer>
+  )
 }
 
 const Container = styled.div`
     display: flex;
     flex-flow: column;
     height: 100vh;
+    background: url('bg.jpg')
 `
+
+const doneHandler = async () => {
+  const image = atrament.toImage()
+  console.log(image)
+}
 
 function App() {
   return (
@@ -139,12 +126,9 @@ function App() {
             <DrawingControls />
             <Canvas />
             <GameStateDetails />
-            <Login />
-            <CreateGame />
-            <UserInfo />
-            <UploadImage />
           </MainContainer>
-          <TaskList></TaskList>
+          <DoneButton onClick={doneHandler} />
+          <TaskList />
         </Container>
 
       </Context.AppContextProvider>

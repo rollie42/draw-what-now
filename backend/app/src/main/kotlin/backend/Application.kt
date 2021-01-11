@@ -1,8 +1,12 @@
 package backend
 
 import backend.user.*
+import backend.storage.*
 import java.util.concurrent.atomic.*
 import java.util.*
+import java.io.File
+
+import org.slf4j.event.Level
 
 import io.ktor.server.engine.embeddedServer
 import io.ktor.routing.*
@@ -44,10 +48,14 @@ fun Application.module() {
     install(ContentNegotiation) {
         json()
     }
+    install(CallLogging) {
+        level = Level.INFO
+    }
     routing {
         println("Hello world")
         val connections = Collections.synchronizedSet<Connection?>(LinkedHashSet())
         val games = mutableListOf<GameState>()
+        val storageApi = StorageApi()
         post("/login") {
             println("Get login?")
             val login = call.receive<backend.request.Login>()
@@ -58,22 +66,21 @@ fun Application.module() {
             val gameState = GameState()
             games += gameState
         }
-        // post("/uploadDrawing") {
-        //     val drawing = call.receive<backend.request.UploadDrawing>()
-        //     // TODO: Validate image size, etc
-        //     drawing.imageId
-        // }
+        post("/uploadDrawing") {
+            val drawing = call.receive<backend.request.UploadDrawing>()
+            val bytes = Base64.getDecoder().decode(drawing.imageData)
+                       
+            // TODO: Validate image size, etc
+            
+            val gameState = games.first{ it.id == drawing.gameId }!!
+            val book = gameState.books.first { it.creator.name == drawing.bookCreator }!!
+            val url = storageApi.Upload(bytes)
+            gameState.addBookEntry(book, ImageBookEntry(Player(drawing.user.name), url))
+        }
         post("/uploadDescription") {
             val description = call.receive<backend.request.UploadDescription>()
             description.description
         }
-        // post("/addDrawing/{id}") {
-        //     // TODO: identity vs body content
-        //     val gameState = 
-        //     connections.forEach {
-        //         it.session.send(gameState)
-        //     }
-        // }
         // webSocket("/subscribe") {
         //     val thisConnection = Connection(this)
         //     connections += thisConnection

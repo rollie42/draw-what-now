@@ -339,7 +339,11 @@ module.exports = class Atrament extends AtramentEventTarget {
   }
 
   toImage() {
-    return this.canvas.toDataURL();
+    return this.canvas.toDataURL().split(';base64,')[1];
+  }
+
+  undo() {
+    this.context.restore()
   }
 
   fill() {

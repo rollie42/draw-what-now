@@ -9,30 +9,25 @@ const Container = styled.div`
 `
 
 const ControlPanel = styled.div`
-    background-color: #151515aa;
+    background-color: #080808aa;
     color: #e6e6e6;
     width: 25vh;
     padding: 20px 20px;
     margin: 30px 50px;
+    min-height: 80%;
 `
 
 const SVG = styled.svg`
     display: inline-flex;
     width: 30px;
     height: 30px;
-    margin: 0px 5px;
+    margin: 0px 2px;
     padding: 3px;
     ${props => props.selected && `background-color: #222222;`}
 `
 
 function ColorCircle(props) {
     const [color, setColor] = React.useContext(Context.ActiveColorContext)
-    if (color.hex == props.color) {
-        console.log("Same!")
-    } else {
-        console.log(color.hex)
-        console.log(props.color)
-    }
     return (
         <SVG onClick={() => setColor({ hex: props.color })} selected={color.hex == props.color}>
             <circle cx="15" cy="15" r="15" stroke={props.color} strokeWidth="1" fill={props.color} />
@@ -44,6 +39,8 @@ const ColorCircleContainer = styled.div`
     display: flex;
     justify-content: left;
     align-items: center;
+    min-height: 30px;
+    flex-wrap: wrap;
 `
 const ColorPaletteContainer = styled.div`
     margin-top: 8px;

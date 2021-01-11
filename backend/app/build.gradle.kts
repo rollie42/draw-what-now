@@ -21,6 +21,8 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.0.1")
     implementation("com.google.guava:guava:29.0-jre")
+    implementation("ch.qos.logback:logback-classic:1.2.3")
+    implementation("com.google.cloud:google-cloud-storage:1.113.8")
 
     implementation(ktor())
     implementation(ktor("-auth"))

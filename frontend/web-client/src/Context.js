@@ -7,6 +7,7 @@ const defaultColor = {
 export const ActiveColorContext = React.createContext(defaultColor)
 export const ColorPalette = React.createContext([])
 export const BrushWidthContext = React.createContext(1)
+export const TasksContext = React.createContext([])
 
 export function AppContextProvider(props) {
     const [user, setUser] = React.useState(null)
@@ -14,6 +15,7 @@ export function AppContextProvider(props) {
     const [activeColor, setActiveColor] = React.useState(defaultColor)
     const [colorPalette, setColorPalette] = React.useState([])
     const [brushWidth, setBrushWidth] = React.useState(1)
+    const [tasks, setTasks] = React.useState([])
 
     return (
         <UserContext.Provider value={[user, setUser]}>
@@ -21,7 +23,9 @@ export function AppContextProvider(props) {
                 <ActiveColorContext.Provider value={[activeColor, setActiveColor]}>
                     <ColorPalette.Provider value={[colorPalette, setColorPalette]}>
                         <BrushWidthContext.Provider value={[brushWidth, setBrushWidth]}>
-                            {props.children}
+                            <TasksContext.Provider value={[tasks, setTasks]}>
+                                {props.children}
+                            </TasksContext.Provider>
                         </BrushWidthContext.Provider>
                     </ColorPalette.Provider>
                 </ActiveColorContext.Provider>

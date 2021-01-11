@@ -27,7 +27,7 @@ export async function CreateGame(name) {
     })
 }
 
-export async function UploadImage(imageData, user) {
+export async function UploadDrawing(imageData, user) {
     const response = await fetch(`http://localhost:4000/uploadDrawing`, {
         method: "POST",
         headers: {
@@ -36,7 +36,7 @@ export async function UploadImage(imageData, user) {
         },
         body: JSON.stringify({
             gameId: "123",
-            bookId: "222",
+            bookCreator: "222",
             imageData: imageData,
             user: user
         })
