@@ -84,7 +84,6 @@ data class GameState(val id: String = UUID.randomUUID().toString()) {
                 }
             }
         }
-
     }
 
     // Called once an actor has completed a task

@@ -15,4 +15,4 @@ data class CreateGame(val gameName: String, val user: GameUser) {
 data class UploadDrawing(val gameId: String, val bookCreator: String, val imageData: String, val user: GameUser)
 
 @Serializable
-data class UploadDescription(val gameId: String, val bookId: String, val description: String, val user: GameUser)
+data class UploadDescription(val gameId: String, val bookCreator: String, val description: String, val user: GameUser)

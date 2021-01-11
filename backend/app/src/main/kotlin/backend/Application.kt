@@ -79,7 +79,9 @@ fun Application.module() {
         }
         post("/uploadDescription") {
             val description = call.receive<backend.request.UploadDescription>()
-            description.description
+            val gameState = games.first{ it.id == description.gameId }!!
+            val book = gameState.books.first { it.creator.name == description.bookCreator }!!
+            gameState.addBookEntry(book, DescriptionBookEntry(Player(description.user.name), description.description))
         }
         // webSocket("/subscribe") {
         //     val thisConnection = Connection(this)
