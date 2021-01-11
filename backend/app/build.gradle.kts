@@ -27,7 +27,7 @@ dependencies {
     implementation(ktor())
     implementation(ktor("-auth"))
     implementation(ktor("-server-core"))
-    implementation(ktor("-server-netty"))
+    implementation(ktor("-server-cio"))
     implementation(ktor("-websockets"))
     implementation(ktor("-serialization"))
 
