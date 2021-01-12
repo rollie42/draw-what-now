@@ -13,8 +13,7 @@ export async function Login(name) {
     return await response.json()
 }
 
-export async function CreateGame(name) {
-    console.log(name)
+export async function CreateGame(gameName, user) {
     const response = await fetch(`http://localhost:4000/createGame`, {
         method: "POST",
         headers: {
@@ -22,9 +21,29 @@ export async function CreateGame(name) {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-
+            gameName,
+            user
         })
     })
+
+    return await response.json()
+}
+
+export async function StartGame(gameId, settings, user) {
+    const response = await fetch(`http://localhost:4000/startGame`, {
+        method: "POST",
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            gameId,
+            settings,
+            user
+        })
+    })
+
+    return await response.json()
 }
 
 export async function UploadDrawing(imageData, user) {

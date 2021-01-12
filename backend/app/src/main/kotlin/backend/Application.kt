@@ -70,6 +70,16 @@ fun Application.module() {
             val user = call.receive<backend.request.CreateGame>()
             val gameState = GameState()
             games[gameState] = Channel<GameState>()
+            call.respond(gameState)
+        }
+        post("/startGame") {
+            val gameSettings = call.receive<backend.request.StartGame>()
+            val gameState = games.keys.first{ it.id == gameSettings.gameId }!!
+            gameState.gameSettings = gameSettings.settings ?: gameState.gameSettings
+            // TODO: verify gameState is notStarted, settings are ok, etc
+            gameState.gameStatus = GameStatus.InProgress
+            games[gameState]?.send(gameState)
+            call.respond(gameState)          
         }
         post("/uploadDrawing") {
             val drawing = call.receive<backend.request.UploadDrawing>()
@@ -81,12 +91,14 @@ fun Application.module() {
             val book = gameState.books.first { it.creator.name == drawing.bookCreator }!!
             val url = storageApi.Upload(bytes)
             gameState.addBookEntry(book, ImageBookEntry(Player(drawing.user.name), url))
+            call.respond(gameState)
         }
         post("/uploadDescription") {
             val description = call.receive<backend.request.UploadDescription>()
             val gameState = games.keys.first{ it.id == description.gameId }!!
             val book = gameState.books.first { it.creator.name == description.bookCreator }!!
             gameState.addBookEntry(book, DescriptionBookEntry(Player(description.user.name), description.description))
+            call.respond(gameState)
         }
         webSocket("/subscribe/{id}") {
             val id = call.parameters["id"]

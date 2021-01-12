@@ -1,4 +1,6 @@
 package backend.request
+
+import backend.*
 import backend.user.*
 import java.util.*
 import kotlinx.serialization.Serializable
@@ -10,6 +12,9 @@ data class Login(val name: String)
 data class CreateGame(val gameName: String, val user: GameUser) {
     val id: String = UUID.randomUUID().toString()
 }
+
+@Serializable
+data class StartGame(val gameId: String, val settings: GameSettings, val user: GameUser)
 
 @Serializable
 data class UploadDrawing(val gameId: String, val bookCreator: String, val imageData: String, val user: GameUser)
