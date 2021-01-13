@@ -53,7 +53,9 @@ function StartGame() {
             // TODO: should this be wss?
             const ws = new WebSocket(`ws://localhost:4000/subscribe/${gameState.id}`);
             ws.onmessage = (message) => {
-                console.log(message.data)
+                const newGameState = JSON.parse(message.data)
+                console.log(newGameState)
+                setGameState(newGameState)
             }
         }
     }, [gameState])
@@ -72,6 +74,7 @@ function StartGame() {
 
 function TestGame() {
     const [gameState, setGameState] = React.useContext(Context.GameStateContext)
+    const [, setUser] = React.useContext(Context.UserContext)
 
     const testFunc = async () => {
         const users = []
@@ -85,12 +88,30 @@ function TestGame() {
 
         const creator = users[0]
 
+        setUser(creator)
+
+        const gameName = "Test Game" + Math.floor(Math.random() * Math.floor(10000))
         console.log("creating game")
-        const gameCreatedState = await GameApi.CreateGame("Test Game", creator)
+        const gameCreatedState = await GameApi.CreateGame(gameName, creator)
         setGameState(gameCreatedState)
+
+        console.log("having users join game")
+        for (const user of users) {
+            await GameApi.JoinGame(gameName, user)
+        }
+
         console.log("starting game")
         const gameStartedState = await GameApi.StartGame(gameCreatedState.id, { rounds: 5 }, creator)
         setGameState(gameStartedState)
+
+        console.log("submitting descriptions")
+        console.log(gameStartedState)
+        for (const user of users.filter(user => user.name != creator.name)) {
+            const book = gameStartedState.books.filter(book => book.currentActor?.name == user.name)[0]
+            console.log(user.name, book?.currentActor?.name, book)
+            if (book)
+                await GameApi.UploadDescription("Test Description", gameStartedState.id, book.creator.name, user)
+        }
     }
 
     useEffect(() => {

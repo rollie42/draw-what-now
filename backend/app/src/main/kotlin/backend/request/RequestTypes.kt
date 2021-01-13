@@ -14,6 +14,9 @@ data class CreateGame(val gameName: String, val user: GameUser) {
 }
 
 @Serializable
+data class JoinGame(val gameName: String, val user: GameUser) 
+
+@Serializable
 data class StartGame(val gameId: String, val settings: GameSettings, val user: GameUser)
 
 @Serializable

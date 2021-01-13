@@ -1,5 +1,5 @@
 {
-  "name": "@drawing-app/atrament",
+  "name": "atrament",
   "version": "1.4.0",
   "description": "Tiny JS library for beautiful drawing and handwriting on the HTML Canvas",
   "main": "index.js",

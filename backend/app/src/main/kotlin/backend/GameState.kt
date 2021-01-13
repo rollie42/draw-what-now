@@ -1,6 +1,6 @@
 package backend
 import java.util.*
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.*
 
 @Serializable
 data class Player(val name: String) {
@@ -14,19 +14,18 @@ data class Player(val name: String) {
     // TODO: hash code
 }
 
-interface BookEntry{val author: Player}
+@Serializable
+sealed class BookEntry{abstract val author: Player}
 
 @Serializable
-class DescriptionBookEntry(override val author: Player, val description: String) : BookEntry
+class DescriptionBookEntry(override val author: Player, val description: String) : BookEntry()
 
 @Serializable
-class ImageBookEntry(override val author: Player, val imageUrl: String) : BookEntry
+class ImageBookEntry(override val author: Player, val imageUrl: String) : BookEntry()
 
 @Serializable
-data class Book(val creator: Player) {
+data class Book(val creator: Player, var currentActor: Player?) {
     val entries = mutableListOf<BookEntry>()
-    var currentActor: Player? = null
-
     val availableDescribers = mutableListOf<Player>()
     val availableDrawers = mutableListOf<Player>()
 }
@@ -42,21 +41,25 @@ enum class GameStatus {
 }
 
 @Serializable
-data class GameState(val id: String = UUID.randomUUID().toString()) {
+data class GameState(val name: String, val id: String = UUID.randomUUID().toString()) {
     var gameSettings = GameSettings(5)
     var gameStatus = GameStatus.NotStarted
     val players = mutableListOf<Player>()
     val books = mutableListOf<Book>()
 
-    fun startGame() {
+    fun startGame(settings: GameSettings?) {
+        gameSettings = settings ?: gameSettings
+        gameStatus = GameStatus.InProgress
         prepareActors()
     }
 
-    fun addPlayer(name: String) {
+    fun addPlayer(name: String): Boolean {
         // TODO: assert unique
         val player = Player(name)
         players += player
-        books += Book(player)
+        books += Book(player, player)       
+        
+        return true
     }
 
     fun prepareActors() {
@@ -81,16 +84,21 @@ data class GameState(val id: String = UUID.randomUUID().toString()) {
 
         repeat(gameSettings.rounds - 1) { idx ->
             books.forEach { book ->
+                var options = actorBuilders.filter { 
+                    it.player != book.creator && 
+                    !book.availableDescribers.contains(it.player) &&
+                    !book.availableDrawers.contains(it.player)
+                }
+
                 val isDraw = idx % 2 == 0
-                val target = if (isDraw) book.availableDrawers else book.availableDescribers
                 val sel = { a: ActorBuilder -> if (isDraw) a.drawCnt else a.describeCnt }
-                var options = actorBuilders.filter { it.player != book.creator && !target.contains(it.player) }
                 val min = options.minOf{ sel(it) }
                 val choice = options.filter{sel(it) == min}.random()
-                target += choice.player
                 if (isDraw) {
+                    book.availableDrawers += choice.player
                     choice.drawCnt += 1
                 } else {
+                    book.availableDescribers += choice.player
                     choice.describeCnt += 1
                 }
             }

@@ -39,6 +39,11 @@ import io.ktor.routing.*
 
 fun main(args: Array<String>): Unit = io.ktor.server.cio.EngineMain.main(args)
 
+@Serializable
+data class ErrorResponse(val message: String) {
+    val type = "error"
+}
+
 fun Application.module() {
     install(CORS) {
         anyHost()
@@ -62,24 +67,40 @@ fun Application.module() {
         val games = mutableMapOf<GameState, Channel<GameState>>()
         val storageApi = StorageApi()
         post("/login") {
-            println("Get login?")
             val login = call.receive<backend.request.Login>()
             call.respond(GameUser(login.name))
         }
         post("/createGame") {
-            val user = call.receive<backend.request.CreateGame>()
-            val gameState = GameState()
+            val params = call.receive<backend.request.CreateGame>()
+            val gameState = GameState(params.gameName)
             games[gameState] = Channel<GameState>()
             call.respond(gameState)
+        }
+        post("/joinGame") {
+            val params = call.receive<backend.request.JoinGame>()
+            val gameState = games.keys.first{ it.name == params.gameName }
+            if (gameState == null) 
+                call.respond(ErrorResponse("Game doesn't exist"))
+            else if (gameState.gameStatus != GameStatus.NotStarted)
+                call.respond(ErrorResponse("Game not accepting new players ${gameState.gameStatus}"))
+            else {
+                if (gameState.addPlayer(params.user.name)) {
+                    // Success!
+                    games[gameState]?.send(gameState)
+                    println("Actor: ${gameState.books[0].currentActor}")
+                    call.respond(gameState)
+                } else {
+                    call.respond(ErrorResponse("Couldn't add player"))
+                }
+            }
         }
         post("/startGame") {
             val gameSettings = call.receive<backend.request.StartGame>()
             val gameState = games.keys.first{ it.id == gameSettings.gameId }!!
-            gameState.gameSettings = gameSettings.settings ?: gameState.gameSettings
+            gameState.startGame(gameSettings.settings)
             // TODO: verify gameState is notStarted, settings are ok, etc
-            gameState.gameStatus = GameStatus.InProgress
             games[gameState]?.send(gameState)
-            call.respond(gameState)          
+            call.respond(gameState)
         }
         post("/uploadDrawing") {
             val drawing = call.receive<backend.request.UploadDrawing>()
@@ -91,6 +112,7 @@ fun Application.module() {
             val book = gameState.books.first { it.creator.name == drawing.bookCreator }!!
             val url = storageApi.Upload(bytes)
             gameState.addBookEntry(book, ImageBookEntry(Player(drawing.user.name), url))
+            games[gameState]?.send(gameState)
             call.respond(gameState)
         }
         post("/uploadDescription") {
@@ -98,15 +120,17 @@ fun Application.module() {
             val gameState = games.keys.first{ it.id == description.gameId }!!
             val book = gameState.books.first { it.creator.name == description.bookCreator }!!
             gameState.addBookEntry(book, DescriptionBookEntry(Player(description.user.name), description.description))
+            games[gameState]?.send(gameState)
             call.respond(gameState)
         }
         webSocket("/subscribe/{id}") {
             val id = call.parameters["id"]
             val gameState = games.keys.first{ it.id == id }!!
-            println(id)
             val channel = games[gameState]!!
-            for (state in channel)
-                send(Json.encodeToString(state))
+            for (state in channel) {
+                val json = Json { prettyPrint = true }.encodeToString(state)                
+                send(json)
+            }
         }
     }
 }

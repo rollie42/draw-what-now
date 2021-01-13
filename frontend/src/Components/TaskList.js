@@ -28,13 +28,25 @@ function Task() {
 }
 
 export default function TaskList() {
-    const [tasks] = useContext(Context.TasksContext)
+    const [gameState] = useContext(Context.GameStateContext)
+    const [user] = useContext(Context.UserContext)
+    const [activeBook, setActiveBook] = React.useContext(Context.ActiveBookContext)
+    const tasks = gameState?.books?.filter(book => book.currentActor?.name == user.name) ?? []
+
+    React.useEffect(() => {
+        if (!activeBook && gameState && gameState.books) {
+            const book = gameState.books.filter(book => book.currentActor?.name == user.name)[0]
+            if (book) {
+                setActiveBook(book)
+            }
+        }
+    }, [activeBook, gameState, user])
+
+    console.log(tasks)
 
     return (
         <TaskListContainer>
-            <Task />
-            <Task />
-            <Task />
+            {tasks.map(task => <Task key={task.creator.name} />)}
         </TaskListContainer>
     )
 }

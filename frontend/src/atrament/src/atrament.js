@@ -342,10 +342,6 @@ module.exports = class Atrament extends AtramentEventTarget {
     return this.canvas.toDataURL().split(';base64,')[1];
   }
 
-  undo() {
-    this.context.restore()
-  }
-
   fill() {
     const { mouse } = this;
     const { context } = this;

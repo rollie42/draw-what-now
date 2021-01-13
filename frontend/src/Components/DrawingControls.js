@@ -58,7 +58,7 @@ function ColorPalette() {
             <Label>Palette</Label>
             <ColorCircleContainer>
                 {colorPalette.map((value) => {
-                    return <ColorCircle color={value} />
+                    return <ColorCircle key={value} color={value} />
                 })}
             </ColorCircleContainer>
         </ColorPaletteContainer>
@@ -78,7 +78,7 @@ function StrokeWidth() {
     return (
         <StrokeWidthContainer>
             <Label>Stroke width</Label>
-            <StrokeWidthValue value={brushWidth} onChange={(e) => setBrushWidth(e.value)}></StrokeWidthValue>
+            <StrokeWidthValue value={brushWidth} onChange={(e) => setBrushWidth(e.target.value)}></StrokeWidthValue>
         </StrokeWidthContainer>
     )
 }
