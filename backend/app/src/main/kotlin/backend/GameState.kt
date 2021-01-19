@@ -24,10 +24,9 @@ class DescriptionBookEntry(override val author: Player, val description: String)
 class ImageBookEntry(override val author: Player, val imageUrl: String) : BookEntry()
 
 @Serializable
-data class Book(val creator: Player, var currentActor: Player?) {
+data class Book(val creator: Player) {
     val entries = mutableListOf<BookEntry>()
-    val availableDescribers = mutableListOf<Player>()
-    val availableDrawers = mutableListOf<Player>()
+    var actors = mutableListOf<Player>()
 }
 
 @Serializable
@@ -37,8 +36,12 @@ data class GameSettings(val rounds: Int)
 enum class GameStatus {
     NotStarted,
     InProgress,
+    PresentingSummary,
     Complete
 }
+
+@Serializable
+data class PresentationState(var bookOwner: String, var pageNumber: Int)
 
 @Serializable
 data class GameState(val name: String, val id: String = UUID.randomUUID().toString()) {
@@ -46,6 +49,7 @@ data class GameState(val name: String, val id: String = UUID.randomUUID().toStri
     var gameStatus = GameStatus.NotStarted
     val players = mutableListOf<Player>()
     val books = mutableListOf<Book>()
+    var presentationState: PresentationState? = null
 
     fun startGame(settings: GameSettings?) {
         gameSettings = settings ?: gameSettings
@@ -56,69 +60,51 @@ data class GameState(val name: String, val id: String = UUID.randomUUID().toStri
     fun addPlayer(name: String): Boolean {
         // TODO: assert unique
         val player = Player(name)
-        players += player
-        books += Book(player, player)       
+        players += player       
         
         return true
     }
 
     fun prepareActors() {
-        /* 
-        Strategy for selecting book actor
-            Rules:
-            1) nobody ever gets the same book twice
-            2) everyone draws and describes an equal number of times (option)
-
-            For each book, randomly construct a pool of drawers and describers. If (2),
-            that pool should be equal to the number of rounds. Whenever a book needs an actor,
-            one from its predefined pool will be selected, selecting people with the fewest 
-            completed actions first.            
-        */
-
-        data class ActorBuilder(val player: Player) {
-            var describeCnt = 0
-            var drawCnt = 0
+        players.forEach {
+            books += Book(it)
         }
+        val sudo = Sudoku(5)
+        sudo.generate()
 
-        var actorBuilders = players.map { ActorBuilder(it) }
-
-        repeat(gameSettings.rounds - 1) { idx ->
-            books.forEach { book ->
-                var options = actorBuilders.filter { 
-                    it.player != book.creator && 
-                    !book.availableDescribers.contains(it.player) &&
-                    !book.availableDrawers.contains(it.player)
-                }
-
-                val isDraw = idx % 2 == 0
-                val sel = { a: ActorBuilder -> if (isDraw) a.drawCnt else a.describeCnt }
-                val min = options.minOf{ sel(it) }
-                val choice = options.filter{sel(it) == min}.random()
-                if (isDraw) {
-                    book.availableDrawers += choice.player
-                    choice.drawCnt += 1
-                } else {
-                    book.availableDescribers += choice.player
-                    choice.describeCnt += 1
-                }
-            }
+        val shuffledPlayers = players.shuffled()
+        shuffledPlayers.forEachIndexed { idx, player ->
+            val book = books.first { it.creator == player }
+            book.actors = sudo.arr[idx].map { shuffledPlayers[it!!] }.toMutableList()
         }
     }
 
     // Called once an actor has completed a task
     fun addBookEntry(book: Book, entry: BookEntry) {
-        val isDraw = entry is DescriptionBookEntry
         book.entries += entry
+        book.actors.removeFirst()
+    }
 
-        if (book.entries.size == gameSettings.rounds) {
-            book.currentActor = null
-            return
+    fun startPresentation() {
+        gameStatus = GameStatus.PresentingSummary
+        presentationState = PresentationState(books.first().creator.name, 0)
+    }
+
+    fun presentNext() {
+        val state = presentationState
+        if (state != null) {
+            if (state.pageNumber == gameSettings.rounds - 1) {
+                // Go to next book
+                val currentBookIdx = books.indexOfFirst { book -> book.creator.name == state.bookOwner }
+                state.bookOwner = books[currentBookIdx + 1].creator.name
+                state.pageNumber = 0 
+            } else {
+                state.pageNumber++
+            }
         }
-        
-        val target = if (isDraw) book.availableDrawers else book.availableDescribers
+    }
 
-        val choice = target.random()
-        target -= choice
-        book.currentActor = choice
+    fun endGame() {
+        gameStatus = GameStatus.Complete
     }
 }

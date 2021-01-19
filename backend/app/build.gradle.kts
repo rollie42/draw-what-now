@@ -1,9 +1,14 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 val ktorVersion = "1.5.0"
+
+project.setProperty("mainClassName", "backend.ApplicationKt")
 
 plugins {
     // Apply the org.jetbrains.kotlin.jvm Plugin to add support for Kotlin.
-    id("org.jetbrains.kotlin.jvm") version "1.4.21"
+    kotlin("jvm") version "1.4.21"
     kotlin("plugin.serialization") version "1.4.21"
+    id("com.github.johnrengelman.shadow") version "5.1.0"
 
     // Apply the application plugin to add support for building a CLI application in Java.
     application
@@ -41,4 +46,18 @@ dependencies {
 application {
     // Define the main class for the application.
     mainClass.set("backend.ApplicationKt")
+}
+
+val jar by tasks.getting(Jar::class) {
+    manifest {
+        attributes["Main-Class"] = "backend.ApplicationKt"
+    }
+}
+
+tasks.withType<ShadowJar>() {
+    manifest {
+        attributes(mapOf(
+                "Main-Class" to "backend.ApplicationKt"
+        ))
+    }
 }

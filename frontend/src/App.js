@@ -1,49 +1,35 @@
-import logo from './logo.svg';
 import './App.css';
 import React, { useCallback, useEffect } from 'react'
-import Atrament from './atrament'
 import * as GameApi from './GameApi'
 import * as Context from './Context'
 import styled from 'styled-components'
-import DrawingControls from './Components/DrawingControls'
-import GameStateDetails from './Components/GameStateDetails'
+import { createGlobalStyle } from 'styled-components'
 import MainContainer from './Components/MainContainer'
 import TaskList from './Components/TaskList'
 import TopBar from './Components/TopBar'
-import CanvasArea from './Components/CanvasArea'
 
 
-const DoneButtonContainer = styled.div`
-  position: fixed;
-  top: 80%;
-  left: 80%;
-`
 
-function DoneButton() {
+function GameSubscriber() {
+  const [gameState, setGameState] = React.useContext(Context.GameStateContext)
   const [user] = React.useContext(Context.UserContext)
-  const [activeBook, setActiveBook] = React.useContext(Context.ActiveBookContext)
-  const [atrament] = React.useContext(Context.AtramentContext)
-  const [gameState] = React.useContext(Context.GameStateContext)
 
-  console.log(activeBook, activeBook?.entries)
-  const handler = async () => {
-    if (activeBook?.entries && activeBook.entries.length % 2 == 1)
-      await GameApi.UploadDrawing(atrament.toImage(), user)
-    else {
-      // TODO: get real text
-      await GameApi.UploadDescription("Done Button Description", gameState.id, activeBook.creator.name, user)
+  const [subscribed, setSubscribed] = React.useState(false)
+
+  useEffect(() => {
+    if (!subscribed && gameState?.id) {
+      console.log("subscribing")
+      setSubscribed(true)
+      GameApi.Subscribe(gameState.id, (message) => {
+        const newGameState = JSON.parse(message.data)
+        console.log(newGameState)
+        setGameState(newGameState)
+      })
     }
-    setActiveBook(null)
+  }, [gameState])
 
-  }
-
-  return (
-    <DoneButtonContainer>
-      <button onClick={handler}>Done</button>
-    </DoneButtonContainer>
-  )
+  return (<div></div>)
 }
-
 const Container = styled.div`
     display: flex;
     flex-flow: column;
@@ -51,21 +37,27 @@ const Container = styled.div`
     background: url('bg.jpg')
 `
 
+const AppStyle = createGlobalStyle`
+  *{
+    @import url('https://fonts.googleapis.com/css2?family=Indie+Flower&display=swap');    
+    font-family: 'Indie Flower', cursive;
+  
+  }
+`
+
+
 function App() {
   return (
     <div className="App">
+      <AppStyle />
       <Context.AppContextProvider>
         <Container>
           <TopBar />
-          <MainContainer>
-            <DrawingControls />
-            <CanvasArea />
-            <GameStateDetails />
-          </MainContainer>
-          <DoneButton />
-          <TaskList />
-        </Container>
+          <MainContainer />
 
+          <TaskList />
+          <GameSubscriber />
+        </Container>
       </Context.AppContextProvider>
     </div>
   );

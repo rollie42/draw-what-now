@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect } from 'react'
-import Atrament from '../atrament'
+import { Atrament, DrawingMode } from '../atrament'
 import * as GameApi from '../GameApi'
 import * as Context from '../Context'
 import styled from 'styled-components'
 
 const ConvasContainer = styled.div`
+    position: relative;
     flex: 1;
+    margin: 95px 48px 5px 70px;
 `
 
 const DescriptionContainer = styled.div`
-    font-size: 30px;
+margin-bottom: 45px;
 `
 
 const StyledCanvas = styled.canvas`
@@ -32,7 +34,16 @@ function Canvas() {
     const [lastStroke, setLastStroke] = React.useState(null)
     const [activeBook] = React.useContext(Context.ActiveBookContext)
     const [colorPalette, setColorPalette] = React.useContext(Context.ColorPalette)
+    const [activeColor, setActiveColor] = React.useContext(Context.ActiveColorContext)
+    const [, setActiveTool] = React.useContext(Context.ActiveToolContext)
+    const [pushedNumber, setPushedNumber] = React.useState(undefined)
     const canvasRef = React.useRef();
+
+    const toolKeybinds = {
+        q: DrawingMode.DRAW,
+        w: 'draw-shape',
+        e: DrawingMode.DRAW_LINE
+    }
 
     // Init atrament api
     React.useEffect(() => {
@@ -50,15 +61,32 @@ function Canvas() {
         });
 
         const keydownHandler = (e) => {
-            if (e.ctrlKey && e.key === 'z') {
+            if (e.key === 'z' && e.ctrlKey) {
                 console.log('undo?')
-                atrament.undo()
+            } else if (parseInt(e.key) >= 0) {
+                setPushedNumber(Number(e.key))
+            } else if (e.key in toolKeybinds) {
+                setActiveTool(toolKeybinds[e.key])
             }
         }
 
         window.addEventListener('keydown', keydownHandler)
         setAtrament(atrament)
-    }, [activeBook])
+    }, [])
+
+    // Handle numeric keys
+    React.useEffect(() => {
+        if (pushedNumber !== undefined) {
+            // convert to an index
+            var idx = pushedNumber === 0 ? 9 : pushedNumber - 1
+            if (colorPalette.length > idx) {
+                setActiveColor(colorPalette[idx])
+            }
+
+            // clear this event
+            setPushedNumber(undefined)
+        }
+    }, [pushedNumber])
 
     // Update color palette as needed
     useEffect(() => {
@@ -68,7 +96,7 @@ function Canvas() {
         }
     }, [colorPalette, lastStroke])
 
-    const isDrawing = activeBook?.entries && activeBook.entries.length % 2 === 1
+    const isDrawing = !activeBook?.entries || activeBook.entries.length % 2 === 1
 
     return (
         <ConvasContainer>
@@ -79,8 +107,22 @@ function Canvas() {
 }
 
 const DescriptionInput = styled.input`
+    background: none;
+    width: 100%;
+    min-height: 60px;
+    font-size:40px;
+    text-align:center;
+    border: none;
+    outline: none;
 
+    &:focus {
+        &::placeholder {
+            color: transparent;
+        }
+    }
 `
+
+
 
 function Description() {
     const [activeBook] = React.useContext(Context.ActiveBookContext)
@@ -119,21 +161,28 @@ const ConvasAreaContainer = styled.div`
   flex: 1;
   display: flex;
   flex-flow: column;
-  margin: 20px 10px;
+  margin: 0px 10px;
+  background-image: url('notebook.png');
+  background-size: 100% 100%;
+  background-position: center;
 `
 
 export default function CanvasArea() {
     const [color] = React.useContext(Context.ActiveColorContext)
     const [brushWidth, setBrushWidth] = React.useContext(Context.BrushWidthContext)
     const [atrament, setAtrament] = React.useContext(Context.AtramentContext)
+    const [activeTool, setActiveTool] = React.useContext(Context.ActiveToolContext);
+    const [activeShape] = React.useContext(Context.ActiveShapeContext)
 
     // Keep color, weight, etc in sync with state
     React.useEffect(() => {
         if (atrament !== null) {
             atrament.color = color.hex || color
+            console.log(brushWidth)
             atrament.weight = brushWidth
+            atrament.mode = activeTool === 'draw-shape' ? activeShape : activeTool
         }
-    }, [atrament, color, brushWidth]);
+    }, [atrament, color, brushWidth, activeTool, activeShape]);
 
     const wheelHandler = (e) => {
         const d = brushWidth < 14 ? 1 : 2

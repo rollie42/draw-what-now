@@ -1,0 +1,4 @@
+#!/bin/bash
+
+gcloud builds submit --tag gcr.io/drawing-game-301412/drawing-game-webapp &&
+gcloud run deploy drawing-game-webapp --image gcr.io/drawing-game-301412/drawing-game-webapp --platform managed

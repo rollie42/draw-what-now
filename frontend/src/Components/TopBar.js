@@ -2,41 +2,60 @@ import React, { useCallback, useEffect } from 'react'
 import styled from 'styled-components'
 import * as Context from '../Context'
 import * as GameApi from '../GameApi'
+import { JoinGameDialog, CreateGameDialog } from './GameDialogs'
+import { Button } from '../Controls'
 
-const LoginBtn = styled.button`
+
+const PresentationTestState = { "name": "Test Game9971", "id": "05988475-5604-4821-841d-58d8a6f6c633", "gameStatus": "PresentingSummary", "players": [{ "name": "bob" }, { "name": "sam" }, { "name": "jenny" }, { "name": "mark" }, { "name": "takeshi" }], "books": [{ "creator": { "name": "bob" }, "entries": [{ "type": "backend.DescriptionBookEntry", "author": { "name": "bob" }, "description": "Test Description0" }, { "type": "backend.ImageBookEntry", "author": { "name": "sam" }, "imageUrl": "https://image_uploads_301412.storage.googleapis.com/5125e598-cb16-424c-be79-e68e2a5e7ffd.png" }, { "type": "backend.DescriptionBookEntry", "author": { "name": "mark" }, "description": "Test Description2" }, { "type": "backend.ImageBookEntry", "author": { "name": "takeshi" }, "imageUrl": "https://image_uploads_301412.storage.googleapis.com/32a5076d-0fa5-4646-8b1b-f2b90bed2df3.png" }, { "type": "backend.DescriptionBookEntry", "author": { "name": "jenny" }, "description": "Test Description4" }] }, { "creator": { "name": "sam" }, "entries": [{ "type": "backend.DescriptionBookEntry", "author": { "name": "sam" }, "description": "Test Description0" }, { "type": "backend.ImageBookEntry", "author": { "name": "mark" }, "imageUrl": "https://image_uploads_301412.storage.googleapis.com/84415ef4-e8b3-4b04-bfad-d43685c7f15b.png" }, { "type": "backend.DescriptionBookEntry", "author": { "name": "bob" }, "description": "Test Description2" }, { "type": "backend.ImageBookEntry", "author": { "name": "jenny" }, "imageUrl": "https://image_uploads_301412.storage.googleapis.com/7d5aecc6-1781-4b93-9e98-4b90c29e2851.png" }, { "type": "backend.DescriptionBookEntry", "author": { "name": "takeshi" }, "description": "Test Description4" }] }, { "creator": { "name": "jenny" }, "entries": [{ "type": "backend.DescriptionBookEntry", "author": { "name": "jenny" }, "description": "Test Description0" }, { "type": "backend.ImageBookEntry", "author": { "name": "bob" }, "imageUrl": "https://image_uploads_301412.storage.googleapis.com/c0f4517d-6741-4373-af21-4312e412b9db.png" }, { "type": "backend.DescriptionBookEntry", "author": { "name": "takeshi" }, "description": "Test Description2" }, { "type": "backend.ImageBookEntry", "author": { "name": "mark" }, "imageUrl": "https://image_uploads_301412.storage.googleapis.com/b797f281-24ec-4fd6-bcdd-60968a46d848.png" }, { "type": "backend.DescriptionBookEntry", "author": { "name": "sam" }, "description": "Test Description4" }] }, { "creator": { "name": "mark" }, "entries": [{ "type": "backend.DescriptionBookEntry", "author": { "name": "mark" }, "description": "Test Description0" }, { "type": "backend.ImageBookEntry", "author": { "name": "takeshi" }, "imageUrl": "https://image_uploads_301412.storage.googleapis.com/60aa50b5-c186-4c4a-9b8f-f79af3e60799.png" }, { "type": "backend.DescriptionBookEntry", "author": { "name": "jenny" }, "description": "Test Description2" }, { "type": "backend.ImageBookEntry", "author": { "name": "sam" }, "imageUrl": "https://image_uploads_301412.storage.googleapis.com/8a20ad14-f6e9-4339-b41d-6f076de8f724.png" }, { "type": "backend.DescriptionBookEntry", "author": { "name": "bob" }, "description": "Test Description4" }] }, { "creator": { "name": "takeshi" }, "entries": [{ "type": "backend.DescriptionBookEntry", "author": { "name": "takeshi" }, "description": "Test Description0" }, { "type": "backend.ImageBookEntry", "author": { "name": "jenny" }, "imageUrl": "https://image_uploads_301412.storage.googleapis.com/23c16ff3-9f64-4bc9-aa60-f528f6a91ea7.png" }, { "type": "backend.DescriptionBookEntry", "author": { "name": "sam" }, "description": "Test Description2" }, { "type": "backend.ImageBookEntry", "author": { "name": "bob" }, "imageUrl": "https://image_uploads_301412.storage.googleapis.com/0bfb1807-2e7e-41f6-9e93-8b874015200d.png" }, { "type": "backend.DescriptionBookEntry", "author": { "name": "mark" }, "description": "Test Description4" }] }], "presentationState": { "bookOwner": "bob", "pageNumber": 0 } }
+const TopControlContainer = styled.div`
+    display: flex;
+    align-items: center;
+    color: #dddddd;
+    font-size: 22px;
 `
 
-function Login() {
-    const [userName, setUserName] = React.useState("")
+function UserName(props) {
+    const { userName, setUserName } = props
     const [, setUser] = React.useContext(Context.UserContext)
 
-    const sendRequest = useCallback(async () => {
-        const user = await GameApi.Login(userName)
-        console.log(user)
-        setUser(user)
-    })
-
     return (
-        <div>
+        <TopControlContainer>
+            <label>Your name</label>
             <input type="text" value={userName} onChange={e => setUserName(e.target.value)}></input>
-            <LoginBtn onClick={sendRequest}>Login</LoginBtn>
-        </div>
+        </TopControlContainer>
     )
 }
 
-function CreateGame() {
-    const [gameName, setGameName] = React.useState("")
-    const [user] = React.useContext(Context.UserContext)
-
-    const sendRequest = useCallback(async () => {
-        await GameApi.CreateGame(gameName, user)
-    })
+function GameName(props) {
+    const { gameName, setGameName } = props
 
     return (
-        <div>
+        <TopControlContainer>
+            <label>Game name</label>
             <input type="text" value={gameName} onChange={e => setGameName(e.target.value)}></input>
-            <button onClick={sendRequest}>Create Game</button>
-        </div>
+        </TopControlContainer>
+    )
+}
+
+function JoinGame() {
+    const [open, setOpen] = React.useState(false)
+
+    return (
+        <TopControlContainer>
+            <Button onClick={() => setOpen(true)}>Join Game</Button>
+            <JoinGameDialog open={open} setOpen={setOpen} />
+        </TopControlContainer>
+    )
+}
+
+function CreateGame(props) {
+    const [open, setOpen] = React.useState(false)
+
+    return (
+        <TopControlContainer>
+            <Button onClick={() => setOpen(true)}>Create Game</Button>
+            <CreateGameDialog open={open} setOpen={setOpen} />
+        </TopControlContainer>
     )
 }
 
@@ -44,39 +63,28 @@ function StartGame() {
     const [gameState, setGameState] = React.useContext(Context.GameStateContext)
     const [user] = React.useContext(Context.UserContext)
 
-    const [subscribed, setSubscribed] = React.useState(false)
-
-    useEffect(() => {
-        if (!subscribed && gameState && gameState.id) {
-            console.log("subscribing")
-            setSubscribed(true)
-            // TODO: should this be wss?
-            const ws = new WebSocket(`ws://localhost:4000/subscribe/${gameState.id}`);
-            ws.onmessage = (message) => {
-                const newGameState = JSON.parse(message.data)
-                console.log(newGameState)
-                setGameState(newGameState)
-            }
-        }
-    }, [gameState])
-
     const sendRequest = async () => {
-        const newState = await GameApi.StartGame(gameState.id, { rounds: 2 }, user)
-        setGameState(newState)
+        await GameApi.StartGame(gameState.id, { rounds: 2 }, user)
     }
 
     return (
-        <div>
-            <button onClick={sendRequest}>Start Game</button>
-        </div>
+        <TopControlContainer>
+            <Button onClick={sendRequest}>Start Game</Button>
+        </TopControlContainer>
     )
 }
 
 function TestGame() {
     const [gameState, setGameState] = React.useContext(Context.GameStateContext)
     const [, setUser] = React.useContext(Context.UserContext)
+    const [atrament] = React.useContext(Context.AtramentContext)
 
     const testFunc = async () => {
+        setUser(await GameApi.Login("bob"))
+        const gs = await GameApi.GetFakeGame()
+        setGameState(gs)
+        return
+
         const users = []
         users.push(
             await GameApi.Login("bob"),
@@ -92,8 +100,8 @@ function TestGame() {
 
         const gameName = "Test Game" + Math.floor(Math.random() * Math.floor(10000))
         console.log("creating game")
-        const gameCreatedState = await GameApi.CreateGame(gameName, creator)
-        setGameState(gameCreatedState)
+        var testGameState = await GameApi.CreateGame(gameName, creator)
+        setGameState(testGameState)
 
         console.log("having users join game")
         for (const user of users) {
@@ -101,54 +109,64 @@ function TestGame() {
         }
 
         console.log("starting game")
-        const gameStartedState = await GameApi.StartGame(gameCreatedState.id, { rounds: 5 }, creator)
-        setGameState(gameStartedState)
+        testGameState = await GameApi.StartGame(testGameState.id, { rounds: 5 }, creator)
+        setGameState(testGameState)
+        const imageData = atrament.toImage()
 
-        console.log("submitting descriptions")
-        console.log(gameStartedState)
-        for (const user of users.filter(user => user.name != creator.name)) {
-            const book = gameStartedState.books.filter(book => book.currentActor?.name == user.name)[0]
-            console.log(user.name, book?.currentActor?.name, book)
-            if (book)
-                await GameApi.UploadDescription("Test Description", gameStartedState.id, book.creator.name, user)
+        while (true) {
+            const book = testGameState.books.filter(b => b.actors[0])[0]
+            if (!book)
+                break
+
+            const user = book.actors[0]
+            if (book.entries.length % 2 === 0) { // describe
+                testGameState = await GameApi.UploadDescription("Test Description" + book.entries.length, testGameState.id, book.creator.name, user)
+            } else { // draw
+                testGameState = await GameApi.UploadDrawing(imageData, testGameState.id, book.creator.name, user)
+            }
         }
+
+        // console.log("submitting descriptions")
+        // console.log(testGameState)
+        // for (const user of users) {//.filter(user => user.name != creator.name)) {
+        //     const book = testGameState.books.filter(book => book.actors[0]?.name == user.name)[0]
+        //     console.log(user.name, book?.actors[0]?.name, book)
+        //     if (book)
+        //         await GameApi.UploadDescription("Test Description", testGameState.id, book.creator.name, user)
+        // }
     }
 
-    useEffect(() => {
-        testFunc()
-    }, [])
-
     return (
-        <div>
-
-        </div>
+        <TopControlContainer>
+            <Button onClick={testFunc}>Test Game</Button>
+        </TopControlContainer>
     )
 }
 
 function UserInfo() {
     const [user] = React.useContext(Context.UserContext)
     return (
-        <div>
+        <TopControlContainer>
             <span>User: {user ? user.name : '??'}</span>
-        </div>
+        </TopControlContainer>
     )
 }
 
 const Container = styled.div`
     width: 100%;
     height: 50px;
-    background-color: #55555588;
+    background-color: #111111aa;
     display: flex;
-    justify-content: right;
+    justify-content: flex-end;
 `
 
 export default function TopBar() {
+    const [userName, setUserName] = React.useState("")
+    const [gameName, setGameName] = React.useState("")
     return (
         <Container>
-            <Login />
+            <JoinGame />
             <CreateGame />
-            <UserInfo />
-            <StartGame />
             <TestGame />
         </Container>
     )

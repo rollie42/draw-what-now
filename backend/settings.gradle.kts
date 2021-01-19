@@ -8,4 +8,12 @@
  */
 
 rootProject.name = "backend"
+
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        jcenter()
+    }
+}
+
 include("app")

@@ -5,14 +5,143 @@ const Pixels = require('./pixels.js');
 
 const DrawingMode = {
   DRAW: 'draw',
+  DRAW_SQUARE: 'draw-square',
+  DRAW_CIRCLE: 'draw-circle',
+  DRAW_TRIANGLE: 'draw-triangle',
+  DRAW_LINE: 'draw-line',
   ERASE: 'erase',
   FILL: 'fill',
   DISABLED: 'disabled'
 };
 
 const PathDrawingModes = [DrawingMode.DRAW, DrawingMode.ERASE];
+const ShapeDrawingModes = [DrawingMode.DRAW_SQUARE, DrawingMode.DRAW_CIRCLE, DrawingMode.DRAW_TRIANGLE, DrawingMode.DRAW_LINE];
 
-module.exports = class Atrament extends AtramentEventTarget {
+class ShapeCanvas {
+  constructor(atrament, shapeCanvas) {
+    this.startPoint = undefined;
+    this._shapeCanvas = shapeCanvas;
+    this.context = shapeCanvas.getContext('2d');
+    this.atrament = atrament;
+
+    const mouseDown = (event) => {
+      if (event.button !== 0) {
+        return;
+      }
+
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+
+      this.startPoint = this._getPos(event);
+    };
+
+    const mouseMove = (event) => {
+      if (event.button !== 0) {
+        return;
+      }
+
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+
+      if (this.startPoint) {
+        const pos = this._getPos(event);
+        this.draw(this.startPoint, pos, shapeCanvas, event);
+      }
+    };
+
+    const mouseUp = (event) => {
+      if (event.button !== 0) {
+        return;
+      }
+
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+
+      if (this.startPoint) {
+        const pos = this._getPos(event);
+        // draw to the real canvas
+        this.draw(this.startPoint, pos, atrament.canvas, event);
+        this.startPoint = undefined;
+      }
+    };
+
+    this._shapeCanvas.addEventListener('mousemove', mouseMove);
+    this._shapeCanvas.addEventListener('mousedown', mouseDown);
+    document.addEventListener('mouseup', mouseUp);
+  }
+
+  draw(startPoint, endPoint, canvas) {
+    // clear temp canvas
+    this.context.clearRect(0, 0, this._shapeCanvas.width, this._shapeCanvas.height);
+
+    // write to provided canvas
+    const canvasCtx = canvas.getContext('2d');
+    const dx = endPoint.x - startPoint.x;
+    const dy = endPoint.y - startPoint.y;
+    switch (this.atrament.mode) {
+      case DrawingMode.DRAW_SQUARE:
+        canvasCtx.fillRect(startPoint.x, startPoint.y, endPoint.x - startPoint.x, endPoint.y - startPoint.y);
+        break;
+      case DrawingMode.DRAW_CIRCLE:
+        const rx = dx / 2;
+        const ry = dy / 2;
+        canvasCtx.beginPath();
+        canvasCtx.ellipse(startPoint.x + rx, startPoint.y + ry, Math.abs(rx), Math.abs(ry), 0, 0, 2 * Math.PI);
+        canvasCtx.fill();
+        canvasCtx.stroke();
+        canvasCtx.closePath();
+
+        break;
+      case DrawingMode.DRAW_TRIANGLE:
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(startPoint.x + dx / 2, startPoint.y);
+        canvasCtx.lineTo(startPoint.x, endPoint.y);
+        canvasCtx.lineTo(endPoint.x, endPoint.y);
+        canvasCtx.fill();
+        canvasCtx.stroke();
+        canvasCtx.closePath();
+        break;
+      case DrawingMode.DRAW_LINE:
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(startPoint.x, startPoint.y);
+        canvasCtx.lineTo(endPoint.x, endPoint.y);
+        canvasCtx.stroke();
+        canvasCtx.closePath();
+        break;
+      default:
+    }
+  }
+
+  show() {
+    this._shapeCanvas.style.display = 'block';
+  }
+
+  hide() {
+    this._shapeCanvas.style.display = 'none';
+  }
+
+  _getPos(event) {
+    const rect = this._shapeCanvas.getBoundingClientRect();
+    const position = event.changedTouches && event.changedTouches[0] || event;
+    let x = position.offsetX;
+    let y = position.offsetY;
+
+    if (typeof x === 'undefined') {
+      x = position.clientX - rect.left;
+    }
+    if (typeof y === 'undefined') {
+      y = position.clientY - rect.top;
+    }
+
+    return new Point(x, y);
+  }
+}
+
+exports.DrawingMode = DrawingMode;
+exports.Atrament = class Atrament extends AtramentEventTarget {
   constructor(selector, config = {}) {
     if (typeof window === 'undefined') {
       throw new Error('Looks like we\'re not running in a browser');
@@ -32,6 +161,17 @@ module.exports = class Atrament extends AtramentEventTarget {
 
     // create a mouse object
     this.mouse = new Mouse();
+
+    // copy canvas for various drawing operations
+    const shapeCanvas = this.canvas.cloneNode();
+    shapeCanvas.id = '_draw_canvas_';
+    shapeCanvas.style.position = 'absolute';
+    shapeCanvas.style.top = 0;
+    shapeCanvas.style.left = 0;
+    shapeCanvas.style.display = 'none';
+    this.canvas.parentNode.appendChild(shapeCanvas);
+
+    this._shapeCanvas = new ShapeCanvas(this, shapeCanvas);
 
     // mousemove handler
     const mouseMove = (event) => {
@@ -54,7 +194,7 @@ module.exports = class Atrament extends AtramentEventTarget {
       const { mouse } = this;
       // draw if we should draw
       if (mouse.down && PathDrawingModes.includes(this.mode)) {
-        const { x: newX, y: newY } = this.draw(x, y, mouse.previous.x, mouse.previous.y);
+        const { x: newX, y: newY } = this.draw(x, y, mouse.previous.x, mouse.previous.y, event);
 
         if (!this._dirty && this.mode === DrawingMode.DRAW && (x !== mouse.x || y !== mouse.y)) {
           this._dirty = true;
@@ -71,6 +211,7 @@ module.exports = class Atrament extends AtramentEventTarget {
 
     // mousedown handler
     const mouseDown = (event) => {
+      console.log(event);
       if (event.cancelable) {
         event.preventDefault();
       }
@@ -87,10 +228,12 @@ module.exports = class Atrament extends AtramentEventTarget {
       mouse.previous.set(mouse.x, mouse.y);
       mouse.down = true;
 
+      console.log(event);
+
       this.beginStroke(mouse.previous.x, mouse.previous.y);
     };
 
-    const mouseUp = (e) => {
+    const mouseUp = (event) => {
       if (this.mode === DrawingMode.FILL) {
         return;
       }
@@ -101,13 +244,13 @@ module.exports = class Atrament extends AtramentEventTarget {
         return;
       }
 
-      const position = e.changedTouches && e.changedTouches[0] || e;
+      const position = event.changedTouches && event.changedTouches[0] || event;
       const x = position.offsetX;
       const y = position.offsetY;
       mouse.down = false;
 
       if (mouse.x === x && mouse.y === y && PathDrawingModes.includes(this.mode)) {
-        const { x: nx, y: ny } = this.draw(mouse.x, mouse.y, mouse.previous.x, mouse.previous.y);
+        const { x: nx, y: ny } = this.draw(mouse.x, mouse.y, mouse.previous.x, mouse.previous.y, event);
         mouse.previous.set(nx, ny);
       }
 
@@ -115,22 +258,16 @@ module.exports = class Atrament extends AtramentEventTarget {
     };
 
     // attach listeners
-    this.canvas.addEventListener('mousemove', mouseMove);
-    this.canvas.addEventListener('mousedown', mouseDown);
-    document.addEventListener('mouseup', mouseUp);
-    this.canvas.addEventListener('touchstart', mouseDown);
-    this.canvas.addEventListener('touchend', mouseUp);
-    this.canvas.addEventListener('touchmove', mouseMove);
+    this.canvas.addEventListener('pointermove', mouseMove);
+    this.canvas.addEventListener('pointerdown', mouseDown);
+    document.addEventListener('pointerup', mouseUp);
 
     // helper for destroying Atrament (removing event listeners)
     this.destroy = () => {
       this.clear();
-      this.canvas.removeEventListener('mousemove', mouseMove);
-      this.canvas.removeEventListener('mousedown', mouseDown);
-      document.removeEventListener('mouseup', mouseUp);
-      this.canvas.removeEventListener('touchstart', mouseDown);
-      this.canvas.removeEventListener('touchend', mouseUp);
-      this.canvas.removeEventListener('touchmove', mouseMove);
+      this.canvas.removeEventListener('pointermove', mouseMove);
+      this.canvas.removeEventListener('pointerdown', mouseDown);
+      document.removeEventListener('pointerup', mouseUp);
     };
 
     // set internal canvas params
@@ -216,8 +353,9 @@ module.exports = class Atrament extends AtramentEventTarget {
    * @param {number} y current Y coordinate
    * @param {number} prevX previous X coordinate
    * @param {number} prevY previous Y coordinate
+   * @param {}       evt   pointerEvent
    */
-  draw(x, y, prevX, prevY) {
+  draw(x, y, prevX, prevY, evt) {
     if (this.recordStrokes) {
       this.strokeMemory.push(new Point(x, y));
     }
@@ -238,8 +376,35 @@ module.exports = class Atrament extends AtramentEventTarget {
 
     // recalculate distance from previous point, this time relative to the smoothed coords
     const dist = Pixels.lineDistance(procX, procY, prevX, prevY);
+    const prevLineWidth = context.lineWidth;
 
-    if (this.adaptiveStroke) {
+    if (evt.pointerType === 'pen') {
+      // Rely entirely on the pressure to determine width
+      /*
+      https://www.dcode.fr/function-equation-finder
+      EXPONENTIAL, curve fit
+      .01	1
+      .03	1
+      .05	1
+      .08	2
+      .13	3
+      .19	4
+      .26	6
+      .36	9
+      .45	15
+      .52	19
+      .61	25
+      .70	38
+      .8	49
+      .9	60
+      1	72
+      */
+      const x = Math.pow(Math.E, 2.03731 * evt.pressure);
+      const width = 11.2892 * x - 12.0045;
+      context.lineWidth = Math.min(Math.max(width, 1), 72);
+
+    }
+    else if (this.adaptiveStroke) {
       // calculate target thickness based on the new distance
       this._targetThickness = (dist - Constants.minLineThickness)
         / Constants.lineThicknessRange * (this._maxWeight - this._weight) + this._weight;
@@ -258,6 +423,12 @@ module.exports = class Atrament extends AtramentEventTarget {
       context.lineWidth = this._weight;
     }
 
+    if (context.lineWidth !== prevLineWidth) {
+      // we need a new path, or the new line width will be used
+      context.closePath();
+      context.beginPath();
+    }
+
     // draw using quad interpolation
     context.quadraticCurveTo(prevX, prevY, procX, procY);
     context.stroke();
@@ -272,6 +443,9 @@ module.exports = class Atrament extends AtramentEventTarget {
   set color(c) {
     if (typeof c !== 'string') throw new Error('wrong argument type');
     this.context.strokeStyle = c;
+    this.context.fillStyle = c;
+    this._shapeCanvas.context.strokeStyle = c;
+    this._shapeCanvas.context.fillStyle = c;
   }
 
   get weight() {
@@ -279,11 +453,13 @@ module.exports = class Atrament extends AtramentEventTarget {
   }
 
   set weight(w) {
-    if (typeof w !== 'number') throw new Error('wrong argument type');
+    w = Number(w);
     this._weight = w;
     this._thickness = w;
     this._targetThickness = w;
     this._maxWeight = w + Constants.weightSpread;
+    this.context.lineWidth = w;
+    this._shapeCanvas.context.lineWidth = w;
   }
 
   get mode() {
@@ -292,20 +468,25 @@ module.exports = class Atrament extends AtramentEventTarget {
 
   set mode(m) {
     if (typeof m !== 'string') throw new Error('wrong argument type');
+    this._mode = m;
+
+    if (ShapeDrawingModes.includes(m)) {
+      this._shapeCanvas.show();
+    }
+    else {
+      this._shapeCanvas.hide();
+    }
+
     switch (m) {
       case DrawingMode.ERASE:
-        this._mode = DrawingMode.ERASE;
         this.context.globalCompositeOperation = 'destination-out';
         break;
       case DrawingMode.FILL:
-        this._mode = DrawingMode.FILL;
         this.context.globalCompositeOperation = 'source-over';
         break;
       case DrawingMode.DISABLED:
-        this._mode = DrawingMode.DISABLED;
         break;
       default:
-        this._mode = DrawingMode.DRAW;
         this.context.globalCompositeOperation = 'source-over';
         break;
     }
