@@ -44,9 +44,10 @@ enum class GameStatus {
 data class PresentationState(var bookOwner: String, var pageNumber: Int)
 
 @Serializable
-data class GameState(val name: String, val id: String = UUID.randomUUID().toString()) {
-    var gameSettings = GameSettings(5)
-    var gameStatus = GameStatus.NotStarted
+class GameState(val name: String, val creator: String, val id: String = UUID.randomUUID().toString()
+    ,val whatthehell: GameSettings = GameSettings(3)
+    ,var gameSettings:GameSettings = GameSettings(5),
+    var gameStatus:GameStatus = GameStatus.NotStarted){
     val players = mutableListOf<Player>()
     val books = mutableListOf<Book>()
     var presentationState: PresentationState? = null
@@ -69,7 +70,7 @@ data class GameState(val name: String, val id: String = UUID.randomUUID().toStri
         players.forEach {
             books += Book(it)
         }
-        val sudo = Sudoku(5)
+        val sudo = Sudoku(players.size)
         sudo.generate()
 
         val shuffledPlayers = players.shuffled()

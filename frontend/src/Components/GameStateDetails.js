@@ -37,6 +37,7 @@ function DoneButton() {
     const [activeBook, setActiveBook] = React.useContext(Context.ActiveBookContext)
     const [atrament] = React.useContext(Context.AtramentContext)
     const [gameState] = React.useContext(Context.GameStateContext)
+    const [description] = React.useContext(Context.DescriptionContext)
 
     console.log(activeBook, activeBook?.entries)
     const handler = async () => {
@@ -44,8 +45,7 @@ function DoneButton() {
         if (activeBook?.entries && activeBook.entries.length % 2 == 1)
             await GameApi.UploadDrawing(atrament.toImage(), gameState.id, activeBook.creator.name, user)
         else {
-            // TODO: get real text
-            await GameApi.UploadDescription("Done Button Description", gameState.id, activeBook.creator.name, user)
+            await GameApi.UploadDescription(description, gameState.id, activeBook.creator.name, user)
         }
         setActiveBook(null)
 
@@ -85,7 +85,7 @@ const PresentNextButtonStyled = styled(Button)`
 function PresentNextButton() {
     const [user] = React.useContext(Context.UserContext)
     const [activeBook, setActiveBook] = React.useContext(Context.ActiveBookContext)
-    const [gameState, setGameState] = React.useContext(Context.GameStateContext)
+    const [gameState] = React.useContext(Context.GameStateContext)
 
     const handler = async () => {
         await GameApi.PresentNext(gameState.id, user)
@@ -96,6 +96,20 @@ function PresentNextButton() {
     )
 }
 
+function StartGameButton() {
+    const [user] = React.useContext(Context.UserContext)
+    const [gameState] = React.useContext(Context.GameStateContext)
+
+    // TODO: settings
+    const handler = async () => {
+        await GameApi.StartGame(gameState.id, { rounds: 2 }, user)
+    }
+
+    return (
+        <PresentNextButtonStyled onClick={handler}>Start Game</PresentNextButtonStyled>
+    )
+}
+
 const GameStateDetailsContainer = styled.div`
     min-width: 300px;
     display: flex;
@@ -103,16 +117,20 @@ const GameStateDetailsContainer = styled.div`
 `
 export default function GameStateDetails() {
     const [gameState] = React.useContext(Context.GameStateContext)
+    const [user] = React.useContext(Context.UserContext)
     const readyToPresent = gameState && gameState.gameStatus === "InProgress" && !gameState.books.some(book => book.actors?.length)
     console.log(gameState)
+    console.log(user)
+    const isGameOwner = gameState && user?.name === gameState?.creator
 
     return (
         <GameStateDetailsContainer>
             {gameState && <GameStatePanel />}
             <DeadSpace />
-            {readyToPresent && <StartPresentingButton />}
-            {gameState?.gameStatus === "PresentingSummary" && <PresentNextButton />}
-            <DoneButton />
+            {readyToPresent && isGameOwner && <StartPresentingButton />}
+            {isGameOwner && gameState?.gameStatus === "PresentingSummary" && <PresentNextButton />}
+            {isGameOwner && gameState.gameStatus === "NotStarted" && <StartGameButton />}
+            {gameState?.gameStatus === "InProgress" && <DoneButton />}
         </GameStateDetailsContainer>
     )
 }

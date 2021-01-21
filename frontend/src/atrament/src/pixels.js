@@ -6,6 +6,17 @@ exports.lineDistance = (x1, y1, x2, y2) => {
 };
 
 exports.hexToRgb = (hexColor) => {
+  var c;
+  if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hexColor)) {
+    c = hexColor.substring(1).split('');
+    if (c.length == 3) {
+      c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+    }
+    c = '0x' + c.join('');
+    return 'rgba(' + [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',') + ',1)';
+  }
+  return hexColor
+
   // Since input type color provides hex and ImageData accepts RGB need to transform
   const m = hexColor.match(/^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i);
   return [
@@ -25,7 +36,7 @@ exports.matchColor = (data, compR, compG, compB, compA) => (pixelPos) => {
   return (r === compR && g === compG && b === compB && a === compA);
 };
 
-exports.colorPixel = (data, fillR, fillG, fillB, startColor, alpha) => {
+exports.colorPixel = (data, fillR, fillG, fillB, alpha, startColor) => {
   const matcher = exports.matchColor(data, ...startColor);
 
   return (pixelPos) => {

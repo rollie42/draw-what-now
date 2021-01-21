@@ -1,15 +1,17 @@
 import React, { useEffect } from 'react'
 import styled from 'styled-components'
-import css from 'styled-components'
-import { ChromePicker } from 'react-color'
 import * as Context from '../Context'
 import ToggleButton from '@material-ui/lab/ToggleButton';
 import ToggleButtonGroup from '@material-ui/lab/ToggleButtonGroup';
 import {DrawingMode} from '../atrament'
+import { HexColorPicker, RgbaStringColorPicker } from "react-colorful";
+import "react-colorful/dist/index.css"
 
 import PaintBrushImg from '../images/paint-brush.png'
 import ShapeToolImg from '../images/shape-tool.png'
 import LineToolImg from '../images/line-tool.png'
+import PaintBucketImg from '../images/paint-bucket.png'
+import EraserImg from '../images/eraser.png'
 
 const Container = styled.div`
     min-width: 28vh;
@@ -36,11 +38,26 @@ const SVG = styled.svg`
     ${props => props.selected && `background-color: #222222;`}
 `
 
+const getRGB = (hexColor) => {
+    var match = hexColor.match(/rgba?\((\d{1,3}), ?(\d{1,3}), ?(\d{1,3})\)?(?:, ?(\d(?:\.\d+)?)\))?/);
+    return match ? {
+        red: match[1],
+        green: match[2],
+        blue: match[3],
+        alpha: match[4]
+    } : {};
+}
+
+function colorsEqual(c1, c2) {
+    const o1 = getRGB(c1)
+    const o2 = getRGB(c2)
+    return o1.red === o2.red && o1.green === o2.green && o1.blue === o2.blue && Math.abs(o1.alpha - o2.alpha) < .1
+}
+
 function ColorCircle(props) {
     const [activeColor, setActiveColor] = React.useContext(Context.ActiveColorContext)
-    console.log(activeColor, props.color)
     return (
-        <SVG onClick={() => setActiveColor(props.color)} selected={activeColor.hex == props.color}>
+        <SVG onClick={() => setActiveColor(props.color)} selected={colorsEqual(activeColor, props.color)}>
             <circle cx="15" cy="15" r="15" stroke={props.color} strokeWidth="1" fill={props.color} />
         </SVG>
     )
@@ -87,7 +104,6 @@ function StrokeWidth() {
 
     const handler = (e) => {
         const val = e.target.value
-        console.log(val)
         setBrushWidth(val)
     }
     return (
@@ -105,6 +121,7 @@ const LabelContainer = styled.div`
     margin: 0px 30px 32px 0px;
     text-align: right;
     transform: translate(-60px, 0px);
+    padding: 30px 0px;
 
     &.hiding {
         transition: opacity 0.5s;
@@ -122,17 +139,18 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function DescriptionLabel(props) {
+function DescriptionLabel() {
     const [gameState] = React.useContext(Context.GameStateContext)
-    const [description, setDescription] = React.useState("")
+    const [, setDescription] = React.useContext(Context.DescriptionContext)
+    const [label, setLabel] = React.useState("")
     const [className, setClassName] = React.useState("")
 
     var name = ""
     if (gameState) {
         const presentationState = gameState.presentationState
-        const book = gameState.books.find(b => b.creator.name === presentationState.bookOwner)
-        var entry = book.entries[presentationState.pageNumber]
-        if (entry.imageUrl)
+        const book = gameState.books?.find(b => b.creator.name === presentationState.bookOwner)
+        var entry = book?.entries[presentationState.pageNumber]
+        if (entry?.imageUrl)
             entry = book.entries[presentationState.pageNumber - 1]
 
         name = entry?.author?.name
@@ -140,7 +158,8 @@ function DescriptionLabel(props) {
 
     useEffect(() => {
         const handler = async () => {
-            if (name !== description) {
+            const newLabel = `${name} wrote:`
+            if (newLabel !== label) {
                 // Fade old text out
                 setClassName('hiding')
                 await sleep(500)
@@ -148,8 +167,11 @@ function DescriptionLabel(props) {
                 await sleep(200)
 
                 // Update text, slide in
-                setDescription(`${name} wrote:`)
+                setLabel(newLabel)
                 setClassName('showing')
+
+                await sleep(800)
+                setDescription(entry.description)
             }
         }
 
@@ -158,7 +180,7 @@ function DescriptionLabel(props) {
 
     return (
         <LabelContainer className={className}>
-            <span>{description}</span>
+            <span>{label}</span>
         </LabelContainer>
     )
 }
@@ -173,7 +195,8 @@ const ImageLabelContainer = styled.div`
 
 function ImageLabel() {
     const [gameState] = React.useContext(Context.GameStateContext)
-    const [description, setDescription] = React.useState("")
+    const [, setDisplayedImage] = React.useContext(Context.DisplayedImageContext)
+    const [label, setLabel] = React.useState("")
     const [className, setClassName] = React.useState("")
     
     const presentationState = gameState.presentationState
@@ -192,7 +215,8 @@ function ImageLabel() {
 
         useEffect(() => {
             const handler = async () => {
-                if (name !== description) {
+                const newLabel = `${name} drew:`
+                if (newLabel !== label) {
                     // Fade old text out
                     setClassName('hiding')
                     await sleep(500)
@@ -200,8 +224,11 @@ function ImageLabel() {
                     await sleep(200)
     
                     // Update text, slide in
-                    setDescription(`${name} drew:`)
+                    setLabel(newLabel)
                     setClassName('showing')
+
+                    await sleep(800)
+                    setDisplayedImage(entry.imageUrl)
                 }
             }
     
@@ -209,8 +236,8 @@ function ImageLabel() {
         }, [gameState])
 
     return (
-        <LabelContainer>
-            {presentationState.pageNumber > 0 && <span>{description}</span>}
+        <LabelContainer className={className}>
+            {presentationState.pageNumber > 0 && <span>{label}</span>}
         </LabelContainer>
     )
 }
@@ -224,12 +251,18 @@ const BookTitleContainer = styled.div`
 `
 
 function BookTitle() {
+    const [gameState] = React.useContext(Context.GameStateContext)
+    const presentationState = gameState.presentationState
     return (
-        <BookTitleContainer>Bob's Book</BookTitleContainer>
+        <BookTitleContainer>{presentationState.bookOwner}'s Book</BookTitleContainer>
     )
 }
 
 const DeadSpace = styled.div`
+    flex: 1;
+`
+
+const DeadSpaceTop = styled.div`
     flex: 1;
 `
 
@@ -257,12 +290,17 @@ function ToolSelector() {
             <ToggleButtonStyled value={DrawingMode.DRAW_LINE} >
                 <ToggleButtonImage src={LineToolImg} />
             </ToggleButtonStyled>
+            <ToggleButtonStyled value={DrawingMode.FILL} >
+                <ToggleButtonImage src={PaintBucketImg} />
+            </ToggleButtonStyled>
+            <ToggleButtonStyled value={DrawingMode.ERASE} >
+                <ToggleButtonImage src={EraserImg} />
+            </ToggleButtonStyled>
         </ToggleButtonGroup>
     )
 }
 
 const Select = styled.select`
-    display: block;
 `
 
 const ShapeOptionsContainer = styled.div`    
@@ -275,11 +313,13 @@ const ShapeOptionsContainer = styled.div`
         transition: max-height .7s ease-in-out;`
     };
 `
+const Checkbox = styled.input.attrs({ type: 'checkbox'})`
+`
 
 function ShapeSelector() {
     const [activeTool] = React.useContext(Context.ActiveToolContext)
     const [activeShape, setActiveShape] = React.useContext(Context.ActiveShapeContext)
-    console.log(activeShape)
+    const [fillShape, setFillShape] = React.useContext(Context.FillShapeContext)
     const options = [
         { label: 'Square', value: DrawingMode.DRAW_SQUARE},
         { label: 'Circle', value: DrawingMode.DRAW_CIRCLE},
@@ -288,17 +328,28 @@ function ShapeSelector() {
     const setter = (evt) => {setActiveShape(evt.target.value) }
     return (        
         <ShapeOptionsContainer state={activeTool === 'draw-shape' ? 'show' : 'exited'}>
-            <label>Shape</label>            
-            <Select value={activeShape} onChange={setter} >
-                {options.map(o => <option value={o.value}>{o.label}</option>)}
-            </Select>
+            <label>Shape</label>
+            <div>
+                <Select value={activeShape} onChange={setter} >
+                    {options.map(o => <option value={o.value}>{o.label}</option>)}
+                </Select>
+                <Checkbox checked={fillShape} onChange={event => setFillShape(event.target.checked)} />
+                <label>Fill?</label>
+            </div>         
+
+
         </ShapeOptionsContainer>
     )
 }
 
+const ColorPicker = styled(RgbaStringColorPicker)`
+    width: 100%;
+`
+
 export default function DrawingControls() {
-    const [color, setColor] = React.useContext(Context.ActiveColorContext)
+    const [activeColor, setActiveColor] = React.useContext(Context.ActiveColorContext)
     const [gameState] = React.useContext(Context.GameStateContext)
+    const presentingSummary = ["PresentingSummary"].includes(gameState?.gameStatus)
 
     return (
         <Container>
@@ -306,14 +357,14 @@ export default function DrawingControls() {
                 <ToolSelector />
                 <ShapeSelector />
                 <StrokeWidth />
-                <ChromePicker disableAlpha={true} color={color} onChange={h => setColor(h)} />
-                <ColorPalette />
-                
+                <ColorPicker color={activeColor} onChange={setActiveColor} />
+                <ColorPalette />                
             </ControlPanel>}
-            {["PresentingSummary"].includes(gameState?.gameStatus) && <BookTitle />}
-            {["PresentingSummary"].includes(gameState?.gameStatus) && <ImageLabel />}
-            {["PresentingSummary"].includes(gameState?.gameStatus) && <DeadSpace />}
-            <DescriptionLabel show={["PresentingSummary"].includes(gameState?.gameStatus)} />
+            {presentingSummary && <BookTitle />}
+            {presentingSummary && <DeadSpaceTop />}
+            {presentingSummary && <ImageLabel />}
+            {presentingSummary && <DeadSpace />}
+            {presentingSummary && <DescriptionLabel />}
         </Container>
     )
 }
