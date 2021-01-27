@@ -20,7 +20,7 @@ data class JoinGame(val gameName: String, val user: GameUser)
 data class StartGame(val gameId: String, val settings: GameSettings, val user: GameUser)
 
 @Serializable
-data class UploadDrawing(val gameId: String, val bookCreator: String, val imageData: String, val user: GameUser)
+data class UploadDrawing(val gameId: String, val bookCreator: String, val imageData: String, val replayDrawings: String, val user: GameUser)
 
 @Serializable
 data class UploadDescription(val gameId: String, val bookCreator: String, val description: String, val user: GameUser)

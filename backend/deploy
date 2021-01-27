@@ -1,0 +1,4 @@
+#!/bin/bash
+
+gcloud builds submit --tag gcr.io/drawing-game-301412/drawing-game-api &&
+gcloud run deploy drawing-game-api --image gcr.io/drawing-game-301412/drawing-game-api --platform managed

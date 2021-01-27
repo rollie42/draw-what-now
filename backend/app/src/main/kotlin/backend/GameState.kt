@@ -21,7 +21,7 @@ sealed class BookEntry{abstract val author: Player}
 class DescriptionBookEntry(override val author: Player, val description: String) : BookEntry()
 
 @Serializable
-class ImageBookEntry(override val author: Player, val imageUrl: String) : BookEntry()
+class ImageBookEntry(override val author: Player, val imageUrl: String, val replayDrawings: String) : BookEntry()
 
 @Serializable
 data class Book(val creator: Player) {
@@ -45,7 +45,6 @@ data class PresentationState(var bookOwner: String, var pageNumber: Int)
 
 @Serializable
 class GameState(val name: String, val creator: String, val id: String = UUID.randomUUID().toString()
-    ,val whatthehell: GameSettings = GameSettings(3)
     ,var gameSettings:GameSettings = GameSettings(5),
     var gameStatus:GameStatus = GameStatus.NotStarted){
     val players = mutableListOf<Player>()

@@ -66,6 +66,11 @@ fun Application.module() {
         get("/") {
             call.respond("Hello user!")
         }
+        get("/state/{id}") {
+            val gameId = call.parameters["id"]
+            val gameState = games.keys.first{ it.id == gameId }
+            call.respond(gameState)
+        }
         post("/login") {
             val login = call.receive<backend.request.Login>()
             call.respond(GameUser(login.name))
@@ -110,7 +115,7 @@ fun Application.module() {
             val gameState = games.keys.first{ it.id == drawing.gameId }
             val book = gameState.books.first { it.creator.name == drawing.bookCreator }!!
             val url = storageApi.Upload(bytes)
-            gameState.addBookEntry(book, ImageBookEntry(Player(drawing.user.name), url))
+            gameState.addBookEntry(book, ImageBookEntry(Player(drawing.user.name), url, drawing.replayDrawings))
             games[gameState]?.send(gameState)
             call.respond(gameState)
         }

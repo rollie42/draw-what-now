@@ -1,5 +1,4 @@
 import React from 'react';
-import Dialog from '@material-ui/core/Dialog';
 import styled from 'styled-components'
 import * as Context from '../Context'
 import * as GameApi from '../GameApi'
@@ -20,12 +19,11 @@ const Input = styled.input`
 
 function UserName(props) {
     const { userName, setUserName } = props
-    const [, setUser] = React.useContext(Context.UserContext)
 
     return (
         <FieldContainer>
             <Label>Your name</Label>
-            <Input type="text" value={userName} onChange={e => setUserName(e.target.value)} />
+            <Input autoFocus type="text" value={userName} onChange={e => setUserName(e.target.value)} />
         </FieldContainer>
     )
 }
@@ -44,7 +42,7 @@ function GameName(props) {
 
 Modal.setAppElement('#root');
 
-const DialogContainer = styled(Modal)`
+export const DialogContainer = styled(Modal)`
     background-color: #222222aa;
     position: absolute;
     top: 40%;

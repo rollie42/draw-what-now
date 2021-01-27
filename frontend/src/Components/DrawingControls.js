@@ -3,8 +3,9 @@ import styled from 'styled-components'
 import * as Context from '../Context'
 import ToggleButton from '@material-ui/lab/ToggleButton';
 import ToggleButtonGroup from '@material-ui/lab/ToggleButtonGroup';
-import {DrawingMode} from '../atrament'
-import { HexColorPicker, RgbaStringColorPicker } from "react-colorful";
+import {sleep} from '../Utils'
+import { DrawingMode } from './Canvas'
+import { RgbaStringColorPicker } from "react-colorful";
 import "react-colorful/dist/index.css"
 
 import PaintBrushImg from '../images/paint-brush.png'
@@ -12,6 +13,8 @@ import ShapeToolImg from '../images/shape-tool.png'
 import LineToolImg from '../images/line-tool.png'
 import PaintBucketImg from '../images/paint-bucket.png'
 import EraserImg from '../images/eraser.png'
+import SelectRegion from '../images/select-region.png'
+import Hand from '../images/hand.png'
 
 const Container = styled.div`
     min-width: 28vh;
@@ -24,7 +27,7 @@ const ControlPanel = styled.div`
     background-color: #080808aa;
     color: #e6e6e6;
     width: 25vh;
-    padding: 20px 20px;
+    padding: 20px 10px;
     margin: 30px 50px;
     min-height: 80%;
 `
@@ -56,8 +59,17 @@ function colorsEqual(c1, c2) {
 
 function ColorCircle(props) {
     const [activeColor, setActiveColor] = React.useContext(Context.ActiveColorContext)
+    const [colorPalette, setColorPalette] = React.useContext(Context.ColorPalette)
+    
+    const clickHandler = React.useCallback((e) => {
+        e.preventDefault()
+        if (e.type === "click")
+            setActiveColor(props.color)
+        else if (e.type === 'contextmenu')
+            setColorPalette(colorPalette.filter(color => color != props.color))
+    }, [colorPalette, activeColor])
     return (
-        <SVG onClick={() => setActiveColor(props.color)} selected={colorsEqual(activeColor, props.color)}>
+        <SVG onContextMenu={clickHandler} onClick={clickHandler} selected={colorsEqual(activeColor, props.color)}>
             <circle cx="15" cy="15" r="15" stroke={props.color} strokeWidth="1" fill={props.color} />
         </SVG>
     )
@@ -77,6 +89,16 @@ const ColorPaletteContainer = styled.div`
 const Label = styled.div`
 `
 
+const ClearButtonStyled = styled.button`
+`
+
+function ClearButton() {
+    const [, setRequestClear] = React.useContext(Context.RequestClearContext)
+
+    return (
+        <ClearButtonStyled onClick={() => setRequestClear(true)}>Clear canvas</ClearButtonStyled>
+    )
+}
 function ColorPalette() {
     const [colorPalette] = React.useContext(Context.ColorPalette)
 
@@ -121,23 +143,21 @@ const LabelContainer = styled.div`
     margin: 0px 30px 32px 0px;
     text-align: right;
     transform: translate(-60px, 0px);
-    padding: 30px 0px;
+    opacity: 0;
+    padding: 30px 0px;    
+
+    &.showing {
+        transition: transform 0.75s ease;
+        transform: translate(0px, 0px);
+        opacity: 1;
+    }
 
     &.hiding {
         transition: opacity 0.5s;
         opacity: 0;        
         transform: translate(0px, 0px);
     }
-
-    &.showing {
-        transition: transform 0.75s ease;
-        transform: translate(0px, 0px);
-    }
 `
-
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 function DescriptionLabel() {
     const [gameState] = React.useContext(Context.GameStateContext)
@@ -157,17 +177,17 @@ function DescriptionLabel() {
     }
 
     useEffect(() => {
+        console.log(gameState)
         const handler = async () => {
             const newLabel = `${name} wrote:`
             if (newLabel !== label) {
                 // Fade old text out
                 setClassName('hiding')
-                await sleep(500)
+                await sleep(500)          
                 setClassName('')
-                await sleep(200)
-
                 // Update text, slide in
                 setLabel(newLabel)
+                await sleep(200)
                 setClassName('showing')
 
                 await sleep(800)
@@ -176,7 +196,7 @@ function DescriptionLabel() {
         }
 
         handler()
-    }, [gameState])
+    }, [entry.description, gameState, label, name])
 
     return (
         <LabelContainer className={className}>
@@ -185,14 +205,6 @@ function DescriptionLabel() {
     )
 }
 
-const ImageLabelContainer = styled.div`
-    font-size: 30px;
-    display: inline-block;
-    width: 100%;
-    margin: 0px 30px 32px 0px;
-    text-align: right;
-`
-
 function ImageLabel() {
     const [gameState] = React.useContext(Context.GameStateContext)
     const [, setDisplayedImage] = React.useContext(Context.DisplayedImageContext)
@@ -200,7 +212,7 @@ function ImageLabel() {
     const [className, setClassName] = React.useState("")
     
     const presentationState = gameState.presentationState
-    const book = gameState.books.find(b => b.creator.name === presentationState.bookOwner)
+    // const book = gameState.books.find(b => b.creator.name === presentationState.bookOwner)
 
     var name = ""
     if (gameState) {
@@ -213,27 +225,30 @@ function ImageLabel() {
         name = entry?.author?.name
     }
 
-        useEffect(() => {
-            const handler = async () => {
-                const newLabel = `${name} drew:`
-                if (newLabel !== label) {
-                    // Fade old text out
-                    setClassName('hiding')
-                    await sleep(500)
-                    setClassName('')
-                    await sleep(200)
-    
-                    // Update text, slide in
-                    setLabel(newLabel)
-                    setClassName('showing')
+    useEffect(() => {
+        const handler = async () => {
+            const newLabel = `${name} drew:`
+            
+            if (presentationState.pageNumber === 0) {
+                setDisplayedImage(entry.imageUrl)
+                setLabel("")
+            } else if (newLabel !== label) {
+                // Fade old text out
+                setClassName('hiding')
+                await sleep(500)          
+                setClassName('')
+                // Update text, slide in
+                setLabel(newLabel)
+                await sleep(200)
+                setClassName('showing')
 
-                    await sleep(800)
-                    setDisplayedImage(entry.imageUrl)
-                }
+                await sleep(800)
+                setDisplayedImage(entry.imageUrl)
             }
-    
-            handler()
-        }, [gameState])
+        }
+
+        handler()
+    }, [entry.imageUrl, gameState, label, name, presentationState.pageNumber])
 
     return (
         <LabelContainer className={className}>
@@ -244,7 +259,7 @@ function ImageLabel() {
 
 const BookTitleContainer = styled.div`    
     font-family: 'Shadows Into Light', cursive;
-    font-size:68px;
+    font-size: 68px;
     position: fixed;
     color: #7F0037;
     transform: translate(130px, -15px) rotate(-18deg);    
@@ -266,21 +281,23 @@ const DeadSpaceTop = styled.div`
     flex: 1;
 `
 
-const ToolSelectorContainer = styled(ToggleButtonGroup)`
-`
-
 const ToggleButtonStyled = styled(ToggleButton)`
 `
 
 const ToggleButtonImage = styled.img`
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
 `    
+
+const ToggleButtonGroupStyled = styled(ToggleButtonGroup)`
+    display: flex;
+    flex-wrap: wrap;
+`
 
 function ToolSelector() {
     const [activeTool, setActiveTool] = React.useContext(Context.ActiveToolContext);
     return (
-        <ToggleButtonGroup value={activeTool} exclusive onChange={(event, newTool) => newTool && setActiveTool(newTool)}>
+        <ToggleButtonGroupStyled value={activeTool} exclusive onChange={(event, newTool) => newTool && setActiveTool(newTool)}>
             <ToggleButtonStyled value={DrawingMode.DRAW}>
                 <ToggleButtonImage src={PaintBrushImg} />
             </ToggleButtonStyled>
@@ -296,7 +313,13 @@ function ToolSelector() {
             <ToggleButtonStyled value={DrawingMode.ERASE} >
                 <ToggleButtonImage src={EraserImg} />
             </ToggleButtonStyled>
-        </ToggleButtonGroup>
+            <ToggleButtonStyled value={DrawingMode.SELECT} >
+                <ToggleButtonImage src={SelectRegion} />
+            </ToggleButtonStyled>
+            <ToggleButtonStyled value={DrawingMode.MOVE} >
+                <ToggleButtonImage src={Hand} />
+            </ToggleButtonStyled>
+        </ToggleButtonGroupStyled>
     )
 }
 
@@ -331,7 +354,7 @@ function ShapeSelector() {
             <label>Shape</label>
             <div>
                 <Select value={activeShape} onChange={setter} >
-                    {options.map(o => <option value={o.value}>{o.label}</option>)}
+                    {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </Select>
                 <Checkbox checked={fillShape} onChange={event => setFillShape(event.target.checked)} />
                 <label>Fill?</label>
@@ -357,6 +380,7 @@ export default function DrawingControls() {
                 <ToolSelector />
                 <ShapeSelector />
                 <StrokeWidth />
+                <ClearButton />
                 <ColorPicker color={activeColor} onChange={setActiveColor} />
                 <ColorPalette />                
             </ControlPanel>}

@@ -8,14 +8,28 @@ const GameStatePanelContainer = styled.div`
     background: #222222dd;
     color: #dddddd;
     margin-top: 20px;
+    padding: 10px 10px;
+    
 `
 
+const GameSettingsContainer = styled.div`
+    
+`
+const GameSettingsLine = styled.div`
+    padding: 5px 0px;
+    text-align: left;
+`
 function GameStatePanel() {
     const [gameState] = React.useContext(Context.GameStateContext)
 
     return (
         <GameStatePanelContainer>
-            <div>Players</div>
+            <GameSettingsContainer>
+                <GameSettingsLine>Game name: {gameState.name}</GameSettingsLine>
+                <GameSettingsLine>Current state: {gameState.gameStatus}</GameSettingsLine>
+                <GameSettingsLine>Rounds: {gameState.gameSettings.rounds}</GameSettingsLine>
+            </GameSettingsContainer>
+            <GameSettingsLine>Players:</GameSettingsLine>
             {gameState.players.map((player) => <div key={player.name}>{player.name}</div>)}
         </GameStatePanelContainer>
     )
@@ -35,16 +49,25 @@ const DoneButtonStyled = styled(Button)`
 function DoneButton() {
     const [user] = React.useContext(Context.UserContext)
     const [activeBook, setActiveBook] = React.useContext(Context.ActiveBookContext)
-    const [atrament] = React.useContext(Context.AtramentContext)
     const [gameState] = React.useContext(Context.GameStateContext)
     const [description] = React.useContext(Context.DescriptionContext)
+    const [replayDrawings, setReplayDrawings] = React.useContext(Context.ReplayDrawingsContext)
 
     console.log(activeBook, activeBook?.entries)
     const handler = async () => {
-        // await GameApi.StartPresentation(gameState.id, user)
-        if (activeBook?.entries && activeBook.entries.length % 2 == 1)
-            await GameApi.UploadDrawing(atrament.toImage(), gameState.id, activeBook.creator.name, user)
-        else {
+        if (activeBook?.entries && activeBook.entries.length % 2 === 1) {
+            // not my favorite way of doing this
+            const data = document.getElementById('layerCanvas').toDataURL('image/png').split(';base64,')[1]
+            for (const replay of replayDrawings) {
+                replay.drawParams.layerCanvas = undefined
+                replay.drawParams.workingCanvas = undefined
+            }
+
+            console.log(replayDrawings)
+
+            await GameApi.UploadDrawing(data, gameState.id, activeBook.creator.name, JSON.stringify(replayDrawings), user)
+            setReplayDrawings([])
+        } else {
             await GameApi.UploadDescription(description, gameState.id, activeBook.creator.name, user)
         }
         setActiveBook(null)
@@ -64,7 +87,6 @@ const StartPresentingButtonStyled = styled(Button)`
 
 function StartPresentingButton() {
     const [user] = React.useContext(Context.UserContext)
-    const [activeBook, setActiveBook] = React.useContext(Context.ActiveBookContext)
     const [gameState] = React.useContext(Context.GameStateContext)
 
     const handler = async () => {
@@ -84,7 +106,6 @@ const PresentNextButtonStyled = styled(Button)`
 
 function PresentNextButton() {
     const [user] = React.useContext(Context.UserContext)
-    const [activeBook, setActiveBook] = React.useContext(Context.ActiveBookContext)
     const [gameState] = React.useContext(Context.GameStateContext)
 
     const handler = async () => {
@@ -96,13 +117,48 @@ function PresentNextButton() {
     )
 }
 
+function PresentNextTestButton() {
+    const [gameState, setGameState] = React.useContext(Context.GameStateContext)
+
+    const handler = async () => {
+        const s = gameState.presentationState
+        console.log(s)
+
+        if (s.pageNumber === 1) {
+            s.bookOwner = gameState.players.find(p => p.name !== s.bookOwner).name
+            s.pageNumber = 0
+        } else {
+            s.pageNumber = 1
+        }
+
+        setGameState(gameState)
+    }
+
+    return (
+        <PresentNextButtonStyled onClick={handler}>Present Next Test</PresentNextButtonStyled>
+    )
+}
+
+function FinishPresentingButton() {
+    const [user] = React.useContext(Context.UserContext)
+    const [gameState] = React.useContext(Context.GameStateContext)
+
+    const handler = async () => {
+        await GameApi.EndGame(gameState.id, user)
+    }
+
+    return (
+        <PresentNextButtonStyled onClick={handler}>View Game Summary</PresentNextButtonStyled>
+    )
+}
+
 function StartGameButton() {
     const [user] = React.useContext(Context.UserContext)
     const [gameState] = React.useContext(Context.GameStateContext)
 
     // TODO: settings
     const handler = async () => {
-        await GameApi.StartGame(gameState.id, { rounds: 2 }, user)
+        await GameApi.StartGame(gameState.id, { rounds: gameState.players.length }, user)
     }
 
     return (
@@ -118,9 +174,8 @@ const GameStateDetailsContainer = styled.div`
 export default function GameStateDetails() {
     const [gameState] = React.useContext(Context.GameStateContext)
     const [user] = React.useContext(Context.UserContext)
+    const [activeBook] = React.useContext(Context.ActiveBookContext)
     const readyToPresent = gameState && gameState.gameStatus === "InProgress" && !gameState.books.some(book => book.actors?.length)
-    console.log(gameState)
-    console.log(user)
     const isGameOwner = gameState && user?.name === gameState?.creator
 
     return (
@@ -128,9 +183,13 @@ export default function GameStateDetails() {
             {gameState && <GameStatePanel />}
             <DeadSpace />
             {readyToPresent && isGameOwner && <StartPresentingButton />}
-            {isGameOwner && gameState?.gameStatus === "PresentingSummary" && <PresentNextButton />}
-            {isGameOwner && gameState.gameStatus === "NotStarted" && <StartGameButton />}
-            {gameState?.gameStatus === "InProgress" && <DoneButton />}
+            {isGameOwner && <>
+                {gameState?.isPresenting() && <PresentNextButton />}
+                {gameState?.isPresenting() && <PresentNextTestButton />}
+                {gameState?.isDonePresenting() && <FinishPresentingButton />}
+                {gameState.gameStatus === "NotStarted" && <StartGameButton />}
+            </>}
+            {activeBook && <DoneButton />}
         </GameStateDetailsContainer>
     )
 }

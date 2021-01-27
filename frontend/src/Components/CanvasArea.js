@@ -1,25 +1,24 @@
-import React, { useCallback, useEffect } from 'react'
-import { Atrament, DrawingMode } from '../atrament'
-import * as GameApi from '../GameApi'
+import React, { useEffect } from 'react'
+import { DrawingMode } from './Canvas'
 import * as Context from '../Context'
+import CC from './Canvas.js'
 import styled from 'styled-components'
+import ReplayIcon from '@material-ui/icons/Replay'
+import { mousePosition } from '../App'
 
-const ConvasContainer = styled.div`
-    position: relative;
-    flex: 1;
-    margin: 95px 48px 5px 70px;
-`
+const _getPos = (canvas, event) => {
+    const rect = canvas.getBoundingClientRect()
+    const position = (event?.changedTouches && event.changedTouches[0]) || event
+    return { x: position.clientX - rect.left, y: position.clientY - rect.top }
+}
 
 const DescriptionContainer = styled.div`
-margin-bottom: 45px;
-`
-
-const StyledCanvas = styled.canvas`
-    width: 100%;
-    height: 100%;
+    margin-bottom: 45px;
 `
 
 const StyledImage = styled.img`
+    width: 100%;
+    height: 100%;
 `
 
 function lastEntry(book) {
@@ -27,89 +26,6 @@ function lastEntry(book) {
         return undefined
 
     return book.entries[book.entries.length - 1]
-}
-
-function Canvas() {
-    const [atrament, setAtrament] = React.useContext(Context.AtramentContext)
-    const [gameState] = React.useContext(Context.GameStateContext)
-    const [displayedImage] = React.useContext(Context.DisplayedImageContext)
-    const [lastStroke, setLastStroke] = React.useState(null)
-    const [activeBook] = React.useContext(Context.ActiveBookContext)
-    const [colorPalette, setColorPalette] = React.useContext(Context.ColorPalette)
-    const [activeColor, setActiveColor] = React.useContext(Context.ActiveColorContext)
-    const [, setActiveTool] = React.useContext(Context.ActiveToolContext)
-    const [pushedNumber, setPushedNumber] = React.useState(undefined)
-    const canvasRef = React.useRef();
-
-    const toolKeybinds = {
-        q: DrawingMode.DRAW,
-        w: 'draw-shape',
-        e: DrawingMode.DRAW_LINE,
-        r: DrawingMode.FILL,
-        t: DrawingMode.ERASE,
-    }
-
-    // Init atrament api
-    React.useEffect(() => {
-        const canvas = canvasRef.current
-        if (!canvas) return
-        canvas.style.cursor = 'crosshair'
-        const atrament = new Atrament(canvas, {
-            width: canvas.offsetWidth,
-            height: canvas.offsetHeight,
-        });
-        atrament.recordStrokes = true
-
-        atrament.addEventListener('drawend', ({ color }) => {
-            setLastStroke(color)
-        });
-
-        const keydownHandler = (e) => {
-            if (e.key === 'z' && e.ctrlKey) {
-                console.log('undo?')
-            } else if (parseInt(e.key) >= 0) {
-                setPushedNumber(Number(e.key))
-            } else if (e.key in toolKeybinds) {
-                setActiveTool(toolKeybinds[e.key])
-            }
-        }
-
-        window.addEventListener('keydown', keydownHandler)
-        setAtrament(atrament)
-    }, [])
-
-    // Handle numeric keys
-    React.useEffect(() => {
-        if (pushedNumber !== undefined) {
-            // convert to an index
-            var idx = pushedNumber === 0 ? 9 : pushedNumber - 1
-            if (colorPalette.length > idx) {
-                setActiveColor(colorPalette[idx])
-            }
-
-            // clear this event
-            setPushedNumber(undefined)
-        }
-    }, [pushedNumber])
-
-    // Update color palette as needed
-    useEffect(() => {
-        if (lastStroke !== null && !colorPalette.includes(lastStroke)) {
-            const arr = [...colorPalette, lastStroke]
-            setColorPalette(arr)
-        }
-    }, [colorPalette, lastStroke])
-
-    const activelyDrawing = activeBook && activeBook.entries.length % 2 === 1
-    const isDrawing = !gameState || gameState.gameStatus === "NotStarted" || activelyDrawing
-
-    console.log("render CanvasArea")
-    return (
-        <ConvasContainer>
-            {isDrawing && <StyledCanvas ref={canvasRef}></StyledCanvas>}
-            {!isDrawing && <StyledImage src={displayedImage}></StyledImage>}
-        </ConvasContainer>
-    )
 }
 
 const DescriptionInput = styled.input`
@@ -127,8 +43,6 @@ const DescriptionInput = styled.input`
         }
     }
 `
-
-
 
 function Description() {
     const [activeBook] = React.useContext(Context.ActiveBookContext)
@@ -157,15 +71,87 @@ function Description() {
         readOnly = true
     }
 
-    // console.log(activeBook == null, readOnly, helpText, description)
+    const descriptionChange = (event) => {
+        if (event.cancelable)
+            event.preventDefault()
+
+        event.stopPropagation()
+        setDescription(event.target.value)
+    }
     return (
         <DescriptionContainer>
-            <DescriptionInput readOnly={readOnly} placeholder={helpText} value={description} onChange={e => setDescription(e.target.value)} />
+            <DescriptionInput readOnly={readOnly} placeholder={helpText} value={description} onChange={descriptionChange} />
         </DescriptionContainer>
     )
 }
 
+function Keybinds(props) {
+    const [colorPalette] = React.useContext(Context.ColorPalette)
+    const [pushedNumber, setPushedNumber] = React.useState(undefined)
+    const [, setActiveColor] = React.useContext(Context.ActiveColorContext)
+    const [, setActiveTool] = React.useContext(Context.ActiveToolContext)
+
+    const { activeBufferIdx, setActiveBufferIdx, setRequestCopy, setRequestPaste, setRequestDelete } = props
+
+
+    // Color commands
+    React.useEffect(() => {
+        if (pushedNumber !== undefined) {
+            // convert to an index
+            var idx = pushedNumber === 0 ? 9 : pushedNumber - 1
+            if (colorPalette.length > idx) {
+                setActiveColor(colorPalette[idx])
+            }
+
+            // clear this event
+            setPushedNumber(undefined)
+        }
+    }, [colorPalette, pushedNumber])
+
+    useEffect(() => {
+        // Tool commands
+        const toolKeybinds = {
+            q: DrawingMode.DRAW,
+            w: 'draw-shape',
+            e: DrawingMode.DRAW_LINE,
+            r: DrawingMode.FILL,
+            a: DrawingMode.ERASE,
+            s: DrawingMode.SELECT,
+            d: DrawingMode.MOVE
+        }
+
+        const keydownHandler = (e) => {
+            if (e.target instanceof HTMLInputElement)
+                return
+
+            if (e.key === 'z' && e.ctrlKey) {
+                if (activeBufferIdx > 0)
+                    setActiveBufferIdx(activeBufferIdx - 1)
+            } else if (e.key === 'y' && e.ctrlKey) {
+                setActiveBufferIdx(activeBufferIdx + 1)
+            } else if (e.key === 'c' && e.ctrlKey) {
+                setRequestCopy(true)
+            } else if (e.key === 'v' && e.ctrlKey) {
+                setRequestPaste(mousePosition)
+            } else if (e.key === 'Delete') {
+                setRequestDelete(true)
+            } else if (parseInt(e.key) >= 0) {
+                setPushedNumber(Number(e.key))
+            } else if (e.key in toolKeybinds) {
+                setActiveTool(toolKeybinds[e.key])
+            }
+        }
+
+        console.log(activeBufferIdx)
+        window.addEventListener('keydown', keydownHandler)
+        return () => window.removeEventListener('keydown', keydownHandler)
+    }, [activeBufferIdx])
+
+    return (<></>)
+}
+
 const ConvasAreaContainer = styled.div`
+  position: relative;
   flex: 1;
   display: flex;
   flex-flow: column;
@@ -175,23 +161,64 @@ const ConvasAreaContainer = styled.div`
   background-position: center;
 `
 
+const RequestReplayButton = styled.button`
+    position: absolute;
+    top: 0px;
+    left: 80px;
+`
+
+const ReplayButtonStyled = styled.button`
+    width:50px;
+    height:50px;
+    position: absolute;
+    right: 90px;
+    bottom: 70px;
+`
+
+function ReplayButton(props) {
+    return (
+        <ReplayButtonStyled onClick={props.onClick}><ReplayIcon /></ReplayButtonStyled>
+    )
+}
+
 export default function CanvasArea() {
     const [activeColor] = React.useContext(Context.ActiveColorContext)
     const [brushWidth, setBrushWidth] = React.useContext(Context.BrushWidthContext)
-    const [atrament, setAtrament] = React.useContext(Context.AtramentContext)
-    const [activeTool, setActiveTool] = React.useContext(Context.ActiveToolContext);
+    const [activeTool] = React.useContext(Context.ActiveToolContext)
     const [activeShape] = React.useContext(Context.ActiveShapeContext)
     const [fillShape] = React.useContext(Context.FillShapeContext)
+    const [, setColorPalette] = React.useContext(Context.ColorPalette)
+    const [gameState] = React.useContext(Context.GameStateContext)
+    const [displayedImage, setDisplayedImage] = React.useContext(Context.DisplayedImageContext)
+    const [activeBook] = React.useContext(Context.ActiveBookContext)
+    const [replayDrawings, setReplayDrawings] = React.useContext(Context.ReplayDrawingsContext)
+    const [requestClear, setRequestClear] = React.useContext(Context.RequestClearContext)
 
-    // Keep color, weight, etc in sync with state
-    React.useEffect(() => {
-        if (atrament !== null) {
-            atrament.color = activeColor
-            atrament.weight = brushWidth
-            atrament.mode = activeTool === 'draw-shape' ? activeShape : activeTool
-            atrament.fillShape = fillShape
+    const [activeBufferIdx, setActiveBufferIdx] = React.useState(0)
+    const [requestReplay, setRequestReplay] = React.useState(false)
+    const [selected, setSelected] = React.useState(false)
+    const [requestCopy, setRequestCopy] = React.useState(false)
+    const [requestPaste, setRequestPaste] = React.useState(undefined)
+    const [requestDelete, setRequestDelete] = React.useState(false)
+
+    useEffect(() => {
+        console.log("requestReplay", requestReplay)
+        if (requestReplay) {
+            setRequestReplay(false)
         }
-    }, [atrament, activeColor, brushWidth, activeTool, activeShape, fillShape]);
+    }, [requestReplay])
+
+    useEffect(() => {
+        if (!gameState)
+            return
+
+        setDisplayedImage("")
+        if (gameState.gameStatus === "PresentingSummary" && gameState.presentationState.pageNumber === 0)
+            setDisplayedImage("empty")
+
+        if (activeBook && activeBook.entries.length % 2 === 0)
+            setDisplayedImage("empty")
+    }, [gameState, activeBook])
 
     const wheelHandler = (e) => {
         const d = brushWidth < 14 ? 1 : 2
@@ -202,9 +229,64 @@ export default function CanvasArea() {
         }
     }
 
+    const onDraw = (drawing) => {
+        setColorPalette(palette => {
+            if (!palette.includes(drawing.color))
+                return ([...palette, drawing.color])
+            return palette
+        })
+        setReplayDrawings([...replayDrawings, drawing])
+    }
+
+    // const activelyDrawing = activeBook && activeBook.entries.length % 2 === 1
+    // const isDrawing = !gameState || gameState.gameStatus === "NotStarted" || activelyDrawing
+
+    const handleRequestReplay = React.useCallback(() => {
+        const ps = gameState.presentationState
+        const book = gameState.books?.find(b => b.creator.name === ps.bookOwner)
+        var entry = book?.entries[ps.pageNumber]
+        if (!entry.imageUrl)
+            entry = book.entries[ps.pageNumber - 1]
+
+        console.log(entry.replayDrawings)
+        setReplayDrawings(JSON.parse(entry.replayDrawings))
+        setRequestReplay(true)
+    }, [gameState])
+
+    console.log(gameState)
+
     return (
         <ConvasAreaContainer onWheel={wheelHandler}>
-            <Canvas />
+            <Keybinds
+                activeBufferIdx={activeBufferIdx}
+                setActiveBufferIdx={setActiveBufferIdx}
+                setRequestCopy={setRequestCopy}
+                setRequestPaste={setRequestPaste}
+                setRequestDelete={setRequestDelete} />
+            <CC
+                mode={activeTool === 'draw-shape' ? activeShape : activeTool}
+                fillShape={fillShape}
+                color={activeColor}
+                lineWidth={brushWidth}
+                onDraw={onDraw}
+                activeBufferIdx={activeBufferIdx}
+                setActiveBufferIdx={setActiveBufferIdx}
+                replayList={requestReplay ? replayDrawings : undefined}
+                staticImage={displayedImage}
+                requestClear={requestClear}
+                setRequestClear={setRequestClear}
+                selected={selected}
+                setSelected={setSelected}
+                requestCopy={requestCopy}
+                setRequestCopy={setRequestCopy}
+                requestPaste={requestPaste}
+                setRequestPaste={setRequestPaste}
+                requestDelete={requestDelete}
+                setRequestDelete={setRequestDelete}
+
+            />
+            {gameState?.isPresenting() && <ReplayButton onClick={handleRequestReplay} />}
+            {false && <StyledImage src={displayedImage}></StyledImage>}
             <Description />
         </ConvasAreaContainer>
     )
