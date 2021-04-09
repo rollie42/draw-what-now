@@ -5,7 +5,9 @@ import Modal from 'react-modal';
 import { Button } from '../Controls'
 import { DialogContainer } from './GameDialogs'
 
-const SummaryContainer = styled.div`
+const SummaryContainer = styled.span`
+    width: 180px;
+    height: 120px;
 `
 
 function DescriptionEntrySummary({ descEntry }) {
@@ -16,10 +18,15 @@ function DescriptionEntrySummary({ descEntry }) {
     )
 }
 
+const StyledImg = styled.img`
+    height: 100%;
+    width: 100%;
+    background: #ffffff;
+`
 function ImageEntrySummary({ imageEntry }) {
     return (
         <SummaryContainer>
-            <img src={imageEntry.imageUrl} />
+            <StyledImg src={imageEntry.imageUrl} />
         </SummaryContainer>
     )
 }
@@ -31,19 +38,24 @@ function EntrySummary({ entry }) {
     )
 }
 
+const BookSummaryContainer = styled.div`
+    display: flex;
+`
 function BookSummary({ book }) {
     return (
-        <div>
+        <BookSummaryContainer>
             {book.entries.map((entry) => <EntrySummary key={entry} entry={entry} />)}
-        </div>
+        </BookSummaryContainer>
     )
 }
 export function GameSummary(props) {
-    const { open, setOpen } = props
+    const [open, setOpen] = React.useState(true)
     const [gameState] = React.useContext(Context.GameStateContext)
 
+
+    console.log(open)
     return (
-        <DialogContainer isOpen={open}>
+        <DialogContainer style={{ overlay: { display: 'flex', alignItems: 'center', justifyContent: 'center' } }} onRequestClose={() => setOpen(false)} isOpen={open}>
             <div>
                 {gameState.books.map((book) => <BookSummary key={book} book={book} />)}
             </div>

@@ -5,6 +5,8 @@ import CC from './Canvas.js'
 import styled from 'styled-components'
 import ReplayIcon from '@material-ui/icons/Replay'
 import { mousePosition } from '../App'
+import {useCanvasProps} from './CanvasProps'
+import { contextsToProps } from '../Utils'
 
 const _getPos = (canvas, event) => {
     const rect = canvas.getBoundingClientRect()
@@ -86,12 +88,11 @@ function Description() {
 }
 
 function Keybinds(props) {
-    const [colorPalette] = React.useContext(Context.ColorPalette)
     const [pushedNumber, setPushedNumber] = React.useState(undefined)
-    const [, setActiveColor] = React.useContext(Context.ActiveColorContext)
     const [, setActiveTool] = React.useContext(Context.ActiveToolContext)
 
-    const { activeBufferIdx, setActiveBufferIdx, setRequestCopy, setRequestPaste, setRequestDelete } = props
+    const { setActiveColor, colorPalette } = props
+    const { setRequestUndo, setRequestRedo, setRequestCopy, setRequestPaste, setRequestDelete } = props
 
 
     // Color commands
@@ -125,10 +126,9 @@ function Keybinds(props) {
                 return
 
             if (e.key === 'z' && e.ctrlKey) {
-                if (activeBufferIdx > 0)
-                    setActiveBufferIdx(activeBufferIdx - 1)
+                setRequestUndo(true)
             } else if (e.key === 'y' && e.ctrlKey) {
-                setActiveBufferIdx(activeBufferIdx + 1)
+                setRequestRedo(true)
             } else if (e.key === 'c' && e.ctrlKey) {
                 setRequestCopy(true)
             } else if (e.key === 'v' && e.ctrlKey) {
@@ -137,15 +137,18 @@ function Keybinds(props) {
                 setRequestDelete(true)
             } else if (parseInt(e.key) >= 0) {
                 setPushedNumber(Number(e.key))
+            } else if (e.key === '[') {
+                props.setLineWidth(w => w > 30 ? w - 2 : w - 1)
+            } else if (e.key === ']') {
+                props.setLineWidth(w => w > 30 ? w + 2 : w + 1)
             } else if (e.key in toolKeybinds) {
                 setActiveTool(toolKeybinds[e.key])
             }
         }
 
-        console.log(activeBufferIdx)
         window.addEventListener('keydown', keydownHandler)
         return () => window.removeEventListener('keydown', keydownHandler)
-    }, [activeBufferIdx])
+    }, [])
 
     return (<></>)
 }
@@ -159,6 +162,7 @@ const ConvasAreaContainer = styled.div`
   background-image: url('notebook.png');
   background-size: 100% 100%;
   background-position: center;
+  padding: 10vh 8vh 0px 8vh;
 `
 
 const RequestReplayButton = styled.button`
@@ -182,24 +186,39 @@ function ReplayButton(props) {
 }
 
 export default function CanvasArea() {
-    const [activeColor] = React.useContext(Context.ActiveColorContext)
-    const [brushWidth, setBrushWidth] = React.useContext(Context.BrushWidthContext)
+    const [gameState] = React.useContext(Context.GameStateContext)
+    const [activeBook] = React.useContext(Context.ActiveBookContext)
     const [activeTool] = React.useContext(Context.ActiveToolContext)
     const [activeShape] = React.useContext(Context.ActiveShapeContext)
-    const [fillShape] = React.useContext(Context.FillShapeContext)
-    const [, setColorPalette] = React.useContext(Context.ColorPalette)
-    const [gameState] = React.useContext(Context.GameStateContext)
-    const [displayedImage, setDisplayedImage] = React.useContext(Context.DisplayedImageContext)
-    const [activeBook] = React.useContext(Context.ActiveBookContext)
-    const [replayDrawings, setReplayDrawings] = React.useContext(Context.ReplayDrawingsContext)
-    const [requestClear, setRequestClear] = React.useContext(Context.RequestClearContext)
-
-    const [activeBufferIdx, setActiveBufferIdx] = React.useState(0)
     const [requestReplay, setRequestReplay] = React.useState(false)
-    const [selected, setSelected] = React.useState(false)
-    const [requestCopy, setRequestCopy] = React.useState(false)
-    const [requestPaste, setRequestPaste] = React.useState(undefined)
-    const [requestDelete, setRequestDelete] = React.useState(false)
+
+    // const [activeColor] = React.useContext(Context.ActiveColorContext)
+    // const [lineWidth, setLineWidth] = React.useContext(Context.LineWidthContext)
+    
+    // const [fillShape] = React.useContext(Context.FillShapeContext)
+    // const [, setColorPalette] = React.useContext(Context.ColorPalette)    
+    // const [staticImage, setStaticImage] = React.useContext(Context.StaticImageContext)
+    // const [replayDrawings, setReplayDrawings] = React.useContext(Context.ReplayDrawingsContext)
+    // const [requestClear, setRequestClear] = React.useContext(Context.RequestClearContext)
+    // const [layers] = React.useContext(Context.LayerContext)
+
+    // const [selected, setSelected] = React.useState(false)
+    // const [requestCopy, setRequestCopy] = React.useState(false)
+    // const [requestPaste, setRequestPaste] = React.useState(undefined)
+    // const [requestDelete, setRequestDelete] = React.useState(false)
+
+    const contextProps = contextsToProps({
+        'activeColor': Context.ActiveColorContext,
+        'lineWidth': Context.LineWidthContext,
+        'fillShape': Context.FillShapeContext,
+        'colorPalette': Context.ColorPalette,
+        'staticImage': Context.StaticImageContext,
+        'replayDrawings': Context.ReplayDrawingsContext,
+        'requestClear': Context.RequestClearContext,
+        'layers': Context.LayerContext,
+        'actionHistory': Context.ActionHistoryContext,
+    })
+    const canvasProps = useCanvasProps(contextProps)
 
     useEffect(() => {
         console.log("requestReplay", requestReplay)
@@ -212,30 +231,29 @@ export default function CanvasArea() {
         if (!gameState)
             return
 
-        setDisplayedImage("")
+        canvasProps.setStaticImage("")
         if (gameState.gameStatus === "PresentingSummary" && gameState.presentationState.pageNumber === 0)
-            setDisplayedImage("empty")
+            canvasProps.setStaticImage("empty")
 
         if (activeBook && activeBook.entries.length % 2 === 0)
-            setDisplayedImage("empty")
+            canvasProps.setStaticImage("empty")
     }, [gameState, activeBook])
 
     const wheelHandler = (e) => {
-        const d = brushWidth < 14 ? 1 : 2
+        const d = canvasProps.lineWidth < 14 ? 1 : 2
         if (e.deltaY < 0) {
-            setBrushWidth(brushWidth + d)
-        } else if (e.deltaY > 0 && brushWidth > 1) {
-            setBrushWidth(brushWidth - d)
+            canvasProps.setLineWidth(canvasProps.lineWidth + d)
+        } else if (e.deltaY > 0 && canvasProps.lineWidth > 1) {
+            canvasProps.setLineWidth(canvasProps.lineWidth - d)
         }
     }
 
     const onDraw = (drawing) => {
-        setColorPalette(palette => {
+        canvasProps.setColorPalette(palette => {
             if (!palette.includes(drawing.color))
                 return ([...palette, drawing.color])
             return palette
         })
-        setReplayDrawings([...replayDrawings, drawing])
     }
 
     // const activelyDrawing = activeBook && activeBook.entries.length % 2 === 1
@@ -248,45 +266,24 @@ export default function CanvasArea() {
         if (!entry.imageUrl)
             entry = book.entries[ps.pageNumber - 1]
 
-        console.log(entry.replayDrawings)
-        setReplayDrawings(JSON.parse(entry.replayDrawings))
+        canvasProps.setReplayDrawings(JSON.parse(entry.replayDrawings))
         setRequestReplay(true)
     }, [gameState])
 
     console.log(gameState)
+    console.log(canvasProps)
 
     return (
         <ConvasAreaContainer onWheel={wheelHandler}>
-            <Keybinds
-                activeBufferIdx={activeBufferIdx}
-                setActiveBufferIdx={setActiveBufferIdx}
-                setRequestCopy={setRequestCopy}
-                setRequestPaste={setRequestPaste}
-                setRequestDelete={setRequestDelete} />
+            <Keybinds {...canvasProps} />
             <CC
                 mode={activeTool === 'draw-shape' ? activeShape : activeTool}
-                fillShape={fillShape}
-                color={activeColor}
-                lineWidth={brushWidth}
                 onDraw={onDraw}
-                activeBufferIdx={activeBufferIdx}
-                setActiveBufferIdx={setActiveBufferIdx}
-                replayList={requestReplay ? replayDrawings : undefined}
-                staticImage={displayedImage}
-                requestClear={requestClear}
-                setRequestClear={setRequestClear}
-                selected={selected}
-                setSelected={setSelected}
-                requestCopy={requestCopy}
-                setRequestCopy={setRequestCopy}
-                requestPaste={requestPaste}
-                setRequestPaste={setRequestPaste}
-                requestDelete={requestDelete}
-                setRequestDelete={setRequestDelete}
+                // replayList={requestReplay ? replayDrawings : undefined} TODO
+                {...canvasProps}
 
             />
             {gameState?.isPresenting() && <ReplayButton onClick={handleRequestReplay} />}
-            {false && <StyledImage src={displayedImage}></StyledImage>}
             <Description />
         </ConvasAreaContainer>
     )

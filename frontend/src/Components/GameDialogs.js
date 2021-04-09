@@ -44,9 +44,7 @@ Modal.setAppElement('#root');
 
 export const DialogContainer = styled(Modal)`
     background-color: #222222aa;
-    position: absolute;
-    top: 40%;
-    left: 50%;
+
     margin-top: -50px;
     margin-left: -50px;
     padding: 15px;

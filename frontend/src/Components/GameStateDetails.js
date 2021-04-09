@@ -3,6 +3,7 @@ import styled from 'styled-components'
 import * as GameApi from '../GameApi'
 import * as Context from '../Context'
 import { Button } from '../Controls'
+import ActionHistory from './ActionHistory'
 
 const GameStatePanelContainer = styled.div`
     background: #222222dd;
@@ -171,6 +172,10 @@ const GameStateDetailsContainer = styled.div`
     display: flex;
     flex-direction: column;
 `
+
+const ActionHistoryContainer = styled.div`
+`
+
 export default function GameStateDetails() {
     const [gameState] = React.useContext(Context.GameStateContext)
     const [user] = React.useContext(Context.UserContext)
@@ -184,12 +189,13 @@ export default function GameStateDetails() {
             <DeadSpace />
             {readyToPresent && isGameOwner && <StartPresentingButton />}
             {isGameOwner && <>
-                {gameState?.isPresenting() && <PresentNextButton />}
+                {gameState?.isPresenting() && !gameState?.isDonePresenting() && <PresentNextButton />}
                 {gameState?.isPresenting() && <PresentNextTestButton />}
                 {gameState?.isDonePresenting() && <FinishPresentingButton />}
                 {gameState.gameStatus === "NotStarted" && <StartGameButton />}
             </>}
             {activeBook && <DoneButton />}
+            <ActionHistoryContainer><ActionHistory /></ActionHistoryContainer>
         </GameStateDetailsContainer>
     )
 }

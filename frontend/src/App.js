@@ -9,7 +9,8 @@ import TaskList from './Components/TaskList'
 import TopBar from './Components/TopBar'
 import Cookies from 'js-cookie'
 import { GameSummary } from './Components/GameSummary'
-
+import {usePrevState} from './Utils'
+import BookReadyAudio from './sounds/task_received.mp3'
 
 function GameSubscriber() {
   const [gameState, setGameState] = React.useContext(Context.GameStateContext)
@@ -21,7 +22,7 @@ function GameSubscriber() {
     const handler = async () => {
       const gs = Cookies.getJSON('gameState')
       const u = Cookies.getJSON('user')
-      if (u && gs) {
+      if (false && u && gs) { // TODO
         console.log(undefined)
         setUser(u)
         setGameState(gs)
@@ -60,6 +61,24 @@ const AppStyle = createGlobalStyle`
   }
 `
 
+function GameAudio() {
+  const [gameState] = React.useContext(Context.GameStateContext)
+  const [activeBook] = React.useContext(Context.ActiveBookContext)
+  const prevGameState = usePrevState(gameState)
+  const prevActiveBook = usePrevState(activeBook)
+
+  // If the user was waiting, let them know they have a task
+  if (activeBook && !prevActiveBook) {
+    const a = new Audio(BookReadyAudio)
+    a.volume = .2
+    a.play()
+  }
+
+  return (
+    <></>
+  )  
+}
+
 export var mousePosition = undefined
 
 function PageContent() {
@@ -75,8 +94,8 @@ function PageContent() {
         <TopBar />
         <MainContainer />
 
-        <TaskList />
         <GameSubscriber />
+        <GameAudio />
         {gameState?.isGameOver() && <GameSummary />}
       </Container>
     </>

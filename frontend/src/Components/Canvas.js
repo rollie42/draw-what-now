@@ -1,7 +1,10 @@
 import React, { useEffect } from 'react'
-import { sleep } from '../Utils'
+import ReactDOM from 'react-dom'
+import { sleep, usePrevState, useStateChange } from '../Utils'
 import styled from 'styled-components'
 import FloodFill from 'q-floodfill'
+import PaintBrushImg from '../images/icons/paint-brush.png'
+import { DrawAction } from '../History'
 
 export const DrawingMode = {
     DRAW: 'draw',
@@ -41,6 +44,7 @@ const StyledCanvas = styled.canvas`
     left: 0;
     width: 100%;
     height: 100%;
+    display: ${props => props.hidden ? 'none;' : 'block;'}    
 `
 
 const clear = (canvas) => {
@@ -50,7 +54,7 @@ const clear = (canvas) => {
 const _getPos = (canvas, event) => {
     const rect = canvas.getBoundingClientRect()
     const position = (event?.changedTouches && event.changedTouches[0]) || event
-    return { x: position.clientX - rect.left, y: position.clientY - rect.top }
+    return { x: Math.floor(position.clientX - rect.left), y: Math.floor(position.clientY - rect.top) }
 }
 
 const mouseEvent = (canvas) => {
@@ -75,11 +79,19 @@ const mouseEvent = (canvas) => {
     })
 }
 
+const clearSelection = ([layerCanvas, workingCanvas, uiCanvas]) => {
+    console.log("Clear selection...?")
+    layerCanvas.getContext('2d').drawImage(workingCanvas, 0, 0)
+    clear(workingCanvas)
+    clear(uiCanvas)
+}
+
 const draw = async (drawParams) => {
     console.log(drawParams)
-    const { startPoint, workingCanvas, layerCanvas, mode, fillShape, fakeDrawing } = drawParams
+    const { startPoint, workingCanvas, layerCanvas, uiCanvas, mode, fillShape, fakeDrawing } = drawParams
     const workingContext = workingCanvas.getContext('2d')
     const layerContext = layerCanvas.getContext('2d')
+    const uiContext = uiCanvas.getContext('2d')
 
     var fakePointIdx = 0
     const fakeMouseEvent = async (startTime) => {
@@ -124,13 +136,14 @@ const draw = async (drawParams) => {
     const drawShape = async (drawFn) => {
         const startTime = Date.now()
         while (true) {
-            const mouseEvt = await (fakeDrawing ? fakeMouseEvent(startTime) : mouseEvent(workingCanvas))
+            const mouseEvt = await (fakeDrawing ? fakeMouseEvent(startTime) : mouseEvent(uiCanvas))
             const { pen, pressure, position } = mouseEvt
             const dx = mouseEvt.position.x - startPoint.x
             const dy = mouseEvt.position.y - startPoint.y
 
             // clear temp canvas
             clear(workingCanvas)
+            
             drawFn({
                 context: mouseEvt.up() ? layerContext : workingContext,
                 startPoint,
@@ -143,6 +156,7 @@ const draw = async (drawParams) => {
 
             if (mouseEvt.up()) {
                 console.log("Done!")
+                console.log(layerContext)
                 return
             }
         }
@@ -217,8 +231,6 @@ const draw = async (drawParams) => {
                         context.lineWidth = p.lineWidth
                         context.stroke(p)
                     }
-
-
                 })
                 drawing.points = points
             })
@@ -271,26 +283,42 @@ const draw = async (drawParams) => {
         case DrawingMode.FILL: {
             const imgData = layerContext.getImageData(0, 0, layerCanvas.width, layerCanvas.height)
             const floodFill = new FloodFill(imgData)
-            floodFill.fill(layerContext.color, startPoint.x, startPoint.y, 0)
+            floodFill.fill(layerContext.color, Math.floor(startPoint.x), Math.floor(startPoint.y), 0)
             layerContext.putImageData(floodFill.imageData, 0, 0)
 
             break
         }
         case DrawingMode.SELECT: {
-            const c = workingContext.color
-            workingContext.strokeStyle = '#000000'
-            workingContext.setLineDash([5, 15])
+            // Undo the effect of any previous selection
+            clearSelection([layerCanvas, workingCanvas, uiCanvas])
+
+            uiContext.save()
+            uiContext.strokeStyle = '#000000'
+            uiContext.setLineDash([5, 15])
             await drawShape(({ context, startPoint, dx, dy }) => {
-                workingContext.strokeRect(startPoint.x, startPoint.y, dx, dy)
+                clear(uiCanvas)
+                uiContext.strokeRect(startPoint.x, startPoint.y, dx, dy)
                 drawing.dx = dx
                 drawing.dy = dy
             })
 
-            workingContext.setLineDash([])
-            workingContext.strokeStyle = c
+            // Move the selected area into the working canvas to support moving
+            console.log(startPoint, drawing)
+            const imgData = layerContext.getImageData(startPoint.x, startPoint.y, drawing.dx, drawing.dy)
+            workingContext.putImageData(imgData, startPoint.x, startPoint.y)
+            layerContext.clearRect(startPoint.x, startPoint.y, drawing.dx, drawing.dy)
+            //layerContext.clearRect(0, 0, 9000, 9000)
+            uiContext.restore()
 
-
-
+            break
+        }
+        case DrawingMode.MOVE: {
+            const workingImg = workingContext.getImageData(0, 0, workingCanvas.width, workingCanvas.height)
+            const uiImg = uiContext.getImageData(0, 0, uiCanvas.width, uiCanvas.height)
+            await drawShape(({ context, startPoint, dx, dy }) => {
+                workingContext.putImageData(workingImg, dx, dy)
+                uiContext.putImageData(uiImg, dx, dy)
+            })
             break
         }
         default:
@@ -306,40 +334,91 @@ const CanvasContainer = styled.div`
         height: 100%;
     `
 
+const cursorIcons = {
+    [DrawingMode.DRAW]: `url(${PaintBrushImg}) 4 26, auto`,
+    [DrawingMode.DRAW_SQUARE]: `url(${PaintBrushImg}) 4 26, auto`,
+    [DrawingMode.DRAW_CIRCLE]: `url(${PaintBrushImg}) 4 26, auto`,
+    [DrawingMode.DRAW_TRIANGLE]: `url(${PaintBrushImg}) 4 26, auto`,
+    [DrawingMode.DRAW_LINE]: `url(${PaintBrushImg}) 4 26, auto`,
+    [DrawingMode.ERASE]: `url(${PaintBrushImg}) 4 26, auto`,
+    [DrawingMode.FILL]: `url(${PaintBrushImg}) 4 26, auto`,
+    [DrawingMode.DISABLED]: 'auto',
+    [DrawingMode.SELECT]: `url(${PaintBrushImg}) 4 26, auto`,
+    [DrawingMode.MOVE]: `url(${PaintBrushImg}) 4 26, auto`,
+}
+
 const getImageData = canvas => canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height)
 
+const combineCanvases = (canvases) => {
+    var tmpCanvas = document.createElement("canvas");
+    tmpCanvas.width = canvases[0].width;
+    tmpCanvas.height = canvases[0].height;
+    var tempContext = tmpCanvas.getContext("2d");
+    for (const canvas of canvases) {
+        tempContext.drawImage(canvas, 0, 0)
+    }
+
+    const imgData = getImageData(tmpCanvas)
+    // document.removeElement(tmpCanvas)
+    return imgData
+}
+
 export default function Canvas(props) {
-    const [undoBufferInternal, setUndoBufferInternal] = React.useState([])
-    const [activeBufferIdxInternal, setActiveBufferIdxInternal] = React.useState(0)
-    const [currentBufferIdx, setCurrentBufferIdx] = React.useState(0)
+    //const [currentBufferIdx, setCurrentBufferIdx] = React.useState(0)
     const [copiedImage, setCopiedImage] = React.useState(undefined)
-    const workingCanvasRef = React.useRef()
-    const activeLayerCanvasRef = React.useRef()
 
-    const { color, lineWidth, mode, fillShape, onDraw, replayList, staticImage, requestClear, setRequestClear } = props
+    // const activeLayerCanvasRef = React.useRef()
+    // const workingCanvasRef = React.useRef()
+    // const uiCanvasRef = React.useRef()
+
+    console.log(props)
+
+    const { activeLayerCanvasRef, workingCanvasRef, uiCanvasRef } = props
+    const useEffectAsync = (fn, deps) => {
+        useEffect(() => {
+            const handler = async () => {
+                fn(activeLayerCanvasRef.current, workingCanvasRef.current, uiCanvasRef.current)
+            }
+
+            handler()
+        }, [...deps, layers])
+    }
+
+    
+    const { activeColor, lineWidth, mode, fillShape, onDraw, replayList, staticImage, requestClear, setRequestClear } = props
     const { selected, setSelected, requestCopy, setRequestCopy, requestPaste, setRequestPaste, requestDelete, setRequestDelete } = props
+    const { actionHistory, setActionHistory, layers, requestUndo, setRequestUndo, requestRedo, setRequestRedo } = props
 
-    // optional undo related properties
-    const [undoBuffer, setUndoBuffer] = props.setUndoBuffer
-        ? [props.undoBuffer, props.setUndoBuffer]
-        : [undoBufferInternal, setUndoBufferInternal]
+    const pushAction = (action) => {
+        setActionHistory(actions => {
+            const firstInactiveIdx = actions.findIndex(action => !action.active)
+            return [...actions.slice(0, Math.min(0, firstInactiveIdx)), action]
+        })
+    }
 
-    const [activeBufferIdx, setActiveBufferIdx] = props.setActiveBufferIdx
-        ? [props.activeBufferIdx, props.setActiveBufferIdx]
-        : [activeBufferIdxInternal, setActiveBufferIdxInternal]
+    const lastActiveUndoIdx = (buffer) => {
+        for (var i=0; i<buffer.length; i++) {
+            if (!buffer[i].active)
+                return i-1
+            
+            return buffer.length-1
+        }
+    }
 
     const startDrawing = React.useCallback(async (event) => {
-        console.log(staticImage)
         if (event.button !== 0 || staticImage)
             return
 
         if (event.cancelable)
             event.preventDefault()
 
+        const startingImg = getImageData(activeLayerCanvasRef.current) // TODO: can we ignore working?
+
         const drawing = await draw({
             startPoint: _getPos(workingCanvasRef.current, event),
             workingCanvas: workingCanvasRef.current,
             layerCanvas: activeLayerCanvasRef.current,
+            uiCanvas: uiCanvasRef.current,
             mode,
             fillShape
         })
@@ -354,44 +433,50 @@ export default function Canvas(props) {
             })
         }
 
-        // Save the current image to the undo buffer
-        console.log(undoBuffer, activeBufferIdx)
-        setUndoBuffer([...undoBuffer.slice(0, activeBufferIdx + 1), {
-            imageData: getImageData(activeLayerCanvasRef.current)
-        }])
-        setCurrentBufferIdx(currentBufferIdx + 1)
-        setActiveBufferIdx(currentBufferIdx + 1)
+        if (drawing) {
+            // const img = combineCanvases([activeLayerCanvasRef.current, workingCanvasRef.current])        
+            const action = new DrawAction(startingImg, drawing)
+            pushAction(action)
+            action.exec(drawing)
+            onDraw(drawing)
+        }
+    }, [staticImage, mode, fillShape, actionHistory, onDraw, layers])
 
-        drawing && onDraw(drawing)
-    }, [staticImage, mode, fillShape, undoBuffer, activeBufferIdx, currentBufferIdx, onDraw])
-
-    // Init canvases (one time only)
-    useEffect(() => {
-        const handler = async () => {
-            const activeCanvas = activeLayerCanvasRef.current
-            const workingCanvas = workingCanvasRef.current
-            const setCanvas = (canvas) => {
+    // Init canvases
+    useEffectAsync(async (layerCanvas, workingCanvas, uiCanvas) => {
+        const setCanvas = (canvas) => {
+            if (!canvas.init) {
+                console.log('init...')
+                canvas.init = true
+                const ctx = canvas.getContext('2d')
                 canvas.width = canvas.offsetWidth
                 canvas.height = canvas.offsetHeight
-                canvas.getContext('2d').translate(0.5, 0.5)
+                ctx.translate(0.5, 0.5)
+                ctx.globalAlpha = 1;
+                ctx.imageSmoothingEnabled = false;
             }
-
-            setCanvas(workingCanvas)
-            setCanvas(activeCanvas)
-            setUndoBuffer([{
-                imageData: getImageData(activeCanvas)
-            }])
         }
 
-        handler()
+        setCanvas(layerCanvas)
+        setCanvas(workingCanvas)
+        setCanvas(uiCanvas)
     }, [])
 
+    // Handle mode change (requires cleanup of working buffer)
+    useEffectAsync((layerCanvas, workingCanvas, uiCanvas) => {
+        if (![DrawingMode.SELECT, DrawingMode.MOVE].includes(mode)) {
+            // This operation can't work on selection; write
+            // whatever is in working buffer to layer
+            // TODO: this probably doesn't work with layer change
+            clearSelection([layerCanvas, workingCanvas, uiCanvas])
+        }        
+    }, [mode])        
+
     // Handle copy
-    useEffect(() => {
+    useEffectAsync((layerCanvas, workingCanvas, uiCanvas) => {
         if (requestCopy) {
             if (selected) {
-                const activeCanvas = activeLayerCanvasRef.current
-                const imgData = activeCanvas.getContext('2d').getImageData(selected.x, selected.y, selected.dx, selected.dy)
+                const imgData = workingCanvas.getContext('2d').getImageData(selected.x, selected.y, selected.dx, selected.dy)
                 setCopiedImage(imgData)
                 // Sadly, clipboard api seems difficult to work with
             }
@@ -400,124 +485,130 @@ export default function Canvas(props) {
     }, [requestCopy, selected])
 
     // Handle paste
-    useEffect(() => {
+    useEffectAsync((layerCanvas, workingCanvas, uiCanvas) => {
         if (requestPaste) {
             if (copiedImage) {
-                const activeCanvas = activeLayerCanvasRef.current
-                const pos = _getPos(activeCanvas, requestPaste)
-                console.log(requestPaste)
-                activeCanvas.getContext('2d').putImageData(copiedImage, pos.x - copiedImage.width / 2, pos.y - copiedImage.height / 2)
+                clearSelection([layerCanvas, workingCanvas, uiCanvas])
+                const pos = _getPos(layerCanvas, requestPaste)
+                console.log('PASTE??')
+                layerCanvas.getContext('2d').putImageData(copiedImage, pos.x - copiedImage.width / 2, pos.y - copiedImage.height / 2)
+                // TODO: actionHistory
+                // TODO: save to replay buffers
             }
             setRequestPaste(undefined)
         }
     }, [requestPaste, copiedImage])
 
     // Handle delete
-    useEffect(() => {
-        console.log(requestDelete, selected)
+    useEffectAsync((layerCanvas, workingCanvas, uiCanvas) => {
         if (requestDelete) {
             if (selected) {
-                const activeContext = activeLayerCanvasRef.current.getContext('2d')
-                activeContext.clearRect(selected.x, selected.y, selected.dx, selected.dy)
+                clear(workingCanvas)
+                // TODO: actionHistory
             }
             setRequestDelete(false)
         }
     }, [requestDelete, selected])
 
     // Load static image if provided
-    useEffect(() => {
-        const handler = async () => {
-            if (staticImage) {
-                console.log(staticImage)
-                if (staticImage === "empty") {
-                    clear(activeLayerCanvasRef.current)
-                } else {
-                    let img = new Image()
-                    await new Promise(r => img.onload = r, img.src = staticImage)
-                    activeLayerCanvasRef.current.getContext('2d').drawImage(img, 0, 0)
-                }
+    useEffectAsync(async (layerCanvas, workingCanvas, uiCanvas) => {
+        if (staticImage) {
+            console.log(staticImage)
+            clear(layerCanvas)
+            if (staticImage !== "empty") {
+                let img = new Image()
+                await new Promise(r => img.onload = r, img.src = staticImage)
+                layerCanvas.getContext('2d').drawImage(img, 0, 0)
             }
         }
-
-        handler()
     }, [staticImage])
 
     // Handle clear request
-    useEffect(() => {
+    useEffectAsync(async (layerCanvas, workingCanvas, uiCanvas) => {
         if (requestClear) {
-            clear(activeLayerCanvasRef.current)
+            clear(layerCanvas)
             setRequestClear(false)
+            // TODO: actionHistory
         }
-    }, [requestClear, activeLayerCanvasRef])
+    }, [requestClear])
 
-    // Handles buffer changes (i.e., undo/redo)
-    useEffect(() => {
-        if (activeBufferIdx >= undoBuffer.length) {
-            // out of range; disregard this operation
-            setActiveBufferIdx(currentBufferIdx)
-        } else if (activeBufferIdx !== currentBufferIdx) {
-            activeLayerCanvasRef.current.getContext('2d').putImageData(undoBuffer[activeBufferIdx].imageData, 0, 0)
-            setCurrentBufferIdx(activeBufferIdx)
+    // Handles undo/redo
+    useEffectAsync(async (layerCanvas, workingCanvas, uiCanvas) => {
+        const idx = lastActiveUndoIdx(actionHistory)
+        console.log(requestUndo, idx, actionHistory)
+        if (requestUndo && idx >= 0) {
+            actionHistory[idx].active = false
+            actionHistory[idx].undo(props) // TODO: will this update...?
+            setActionHistory([...actionHistory])
+        } else if (requestRedo && idx < actionHistory.length - 1) {
+            actionHistory[idx+1].active = true
+            actionHistory[idx+1].exec(props)
+            setActionHistory([...actionHistory])            
+            // layerCanvas.getContext('2d').putImageData(undoBuffer[activeBufferIdx].imageData, 0, 0)
         }
-    }, [activeBufferIdx, currentBufferIdx, undoBuffer])
+        setRequestUndo(false)
+        setRequestRedo(false)
+    }, [requestUndo, requestRedo, actionHistory])
 
     // Handle replay
-    useEffect(() => {
-        const handler = async () => {
-            console.log("replaying!")
+    useEffectAsync(async (layerCanvas, workingCanvas, uiCanvas) => {
+        if (!replayList)
+            return
 
-            const activeLayerContext = activeLayerCanvasRef.current.getContext('2d')
-            const workingContext = workingCanvasRef.current.getContext('2d')
-            clear(activeLayerCanvasRef.current)
+        console.log("replaying!")
 
-            const setContextData = (context, drawing) => {
-                context.lineWidth = drawing.lineWidth
-                context.color = drawing.color
-                context.fillStyle = drawing.color
-                context.strokeStyle = drawing.color
-            }
+        clear(layerCanvas)
 
-            for (const drawing of replayList) {
-                const params = drawing.drawParams
-                setContextData(activeLayerContext, drawing)
-                setContextData(workingContext, drawing)
-                await draw({
-                    ...params,
-                    workingCanvas: workingCanvasRef.current,
-                    layerCanvas: activeLayerCanvasRef.current,
-                    fakeDrawing: drawing
-                })
-            }
-            console.log("done replay")
-
+        const setContextData = (context, drawing) => {
+            context.lineWidth = drawing.lineWidth
+            context.color = drawing.color
+            context.fillStyle = drawing.color
+            context.strokeStyle = drawing.color
         }
 
-        if (replayList)
-            handler()
+        for (const drawing of replayList) {
+            const params = drawing.drawParams
+            setContextData(layerCanvas.getContext('2d'), drawing)
+            setContextData(workingCanvas.getContext('2d'), drawing)
+            await draw({
+                ...params,
+                workingCanvas,
+                layerCanvas,
+                uiCanvas,
+                fakeDrawing: drawing
+            })
+        }
+        console.log("done replay")
+
     }, [replayList])
 
-    useEffect(() => {
+    // Handle property change
+    useEffectAsync(async (layerCanvas, workingCanvas, uiCanvas) => {
         const setCanvas = (canvas) => {
             const context = canvas.getContext('2d')
             context.globalCompositeOperation = mode === DrawingMode.ERASE
                 ? 'destination-out'
-                : 'source-over'
-            context.globalAlpha = 1
+                : 'source-over'//'hard-light'
             context.lineWidth = lineWidth
-            context.color = color
-            context.fillStyle = color
-            context.strokeStyle = color
+            context.color = activeColor
+            context.fillStyle = activeColor
+            context.strokeStyle = activeColor
+            canvas.style.cursor = cursorIcons[mode]
         }
 
-        setCanvas(workingCanvasRef.current)
-        setCanvas(activeLayerCanvasRef.current)
+        setCanvas(layerCanvas)
+        setCanvas(workingCanvas)
+        setCanvas(uiCanvas)
+    }, [activeColor, lineWidth, workingCanvasRef, layers, mode])
 
-    }, [color, lineWidth, workingCanvasRef, activeLayerCanvasRef, mode])
-
+    const activeLayerIndex = layers.findIndex(l => l.active)
     return (
         <CanvasContainer>
-            <StyledCanvas id="layerCanvas" ref={activeLayerCanvasRef} />
-            <StyledCanvas id="workingCanvas" ref={workingCanvasRef} onPointerDown={startDrawing} />
+            {layers.map(v => <>
+                <StyledCanvas hidden={!v.visible} id={v.id} key={v.id} ref={v.active ? activeLayerCanvasRef : undefined}/>
+                <StyledCanvas hidden={!v.visible} id={'working_'+v.id} key={'working_'+v.id} ref={v.active ? workingCanvasRef : undefined}/>                
+                </>)}
+            <StyledCanvas id="uiCanvas" ref={uiCanvasRef} onPointerDown={startDrawing} />
         </CanvasContainer>
     )
 }

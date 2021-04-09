@@ -7,6 +7,11 @@ import {sleep} from '../Utils'
 import { DrawingMode } from './Canvas'
 import { RgbaStringColorPicker } from "react-colorful";
 import "react-colorful/dist/index.css"
+import { v4 as uuidv4 } from 'uuid'
+import DeleteLayerIcon from '@material-ui/icons/Close'
+import VisibleIcon from '@material-ui/icons/Visibility'
+import NotVisibleIcon from '@material-ui/icons/VisibilityOff'
+import { LayerCreateAction, LayerToggleAction, LayerDeleteAction, LayerSelectAction } from '../History'
 
 import PaintBrushImg from '../images/paint-brush.png'
 import ShapeToolImg from '../images/shape-tool.png'
@@ -122,16 +127,16 @@ const StrokeWidthValue = styled.input`
 `
 
 function StrokeWidth() {
-    const [brushWidth, setBrushWidth] = React.useContext(Context.BrushWidthContext)
+    const [lineWidth, setLineWidth] = React.useContext(Context.LineWidthContext)
 
     const handler = (e) => {
         const val = e.target.value
-        setBrushWidth(val)
+        setLineWidth(val)
     }
     return (
         <StrokeWidthContainer>
             <Label>Stroke width</Label>
-            <StrokeWidthValue value={brushWidth} inputmode="numeric" min="1" max="72" onChange={handler}></StrokeWidthValue>
+            <StrokeWidthValue value={lineWidth} inputmode="numeric" min="1" max="72" onChange={handler}></StrokeWidthValue>
         </StrokeWidthContainer>
     )
 }
@@ -207,7 +212,7 @@ function DescriptionLabel() {
 
 function ImageLabel() {
     const [gameState] = React.useContext(Context.GameStateContext)
-    const [, setDisplayedImage] = React.useContext(Context.DisplayedImageContext)
+    const [, setStaticImage] = React.useContext(Context.StaticImageContext)
     const [label, setLabel] = React.useState("")
     const [className, setClassName] = React.useState("")
     
@@ -230,7 +235,7 @@ function ImageLabel() {
             const newLabel = `${name} drew:`
             
             if (presentationState.pageNumber === 0) {
-                setDisplayedImage(entry.imageUrl)
+                setStaticImage(entry.imageUrl)
                 setLabel("")
             } else if (newLabel !== label) {
                 // Fade old text out
@@ -243,7 +248,7 @@ function ImageLabel() {
                 setClassName('showing')
 
                 await sleep(800)
-                setDisplayedImage(entry.imageUrl)
+                setStaticImage(entry.imageUrl)
             }
         }
 
@@ -369,6 +374,109 @@ const ColorPicker = styled(RgbaStringColorPicker)`
     width: 100%;
 `
 
+const LayerOuterContainer = styled.div`
+    width: 100%;
+`
+const LayerContainer = styled.div`
+    width: 100%;
+    display: flex;
+    background-color: ${props => props.active ? 'grey' : 'black'}
+`
+
+const VisibleToggleContainer = styled.span`
+
+`
+
+function VisibleToggle({layer}) {
+    const [layers, setLayers] = React.useContext(Context.LayerContext)
+    const [, , pushAction] = React.useContext(Context.ActionHistoryContext)
+
+    const toggleVisible = React.useCallback((e) => {
+        e.stopPropagation()
+        const action = new LayerToggleAction(layer)
+        action.exec({setLayers})
+        pushAction(action)
+    }, [layers])
+
+    return (
+        <VisibleToggleContainer onClick={toggleVisible}>
+        {layer.visible && <VisibleIcon />}
+        {!layer.visible && <NotVisibleIcon />}
+        </VisibleToggleContainer>
+    )
+}
+
+const LayerText = styled.span`
+    flex: 1;
+`
+
+function Layer({layer}) {
+    const [layers, setLayers] = React.useContext(Context.LayerContext)
+    const [, , pushAction] = React.useContext(Context.ActionHistoryContext)
+    
+    const selectLayer = React.useCallback(() => {
+        if (layer.active)
+            return
+
+        const currentLayer = layers.find(layer => layer.active)
+        const action = new LayerSelectAction(layer, currentLayer)
+        action.exec({setLayers})
+        pushAction(action)
+    }, [layers])
+
+    const deleteLayer = React.useCallback((e) => {
+        e.stopPropagation()
+        if (layers.length === 1)
+            return
+
+        let idx = layers.findIndex(l => l.id === layer.id)
+        const action = new LayerDeleteAction(layer, idx)
+        action.exec({setLayers})
+        pushAction(action)
+    }, [layers])
+
+    console.log(layer)
+
+    return (
+        <LayerContainer onClick={selectLayer} active={layer.active}>
+            <VisibleToggle layer={layer} />
+            <LayerText>{layer.name}</LayerText>
+            <DeleteLayerIcon onClick={deleteLayer}/>
+        </LayerContainer>
+    )
+}
+
+const NewLayerButton = styled.button`
+
+`
+
+function LayerList() {
+    const [layers, setLayers] = React.useContext(Context.LayerContext)
+    const [, , pushAction] = React.useContext(Context.ActionHistoryContext)
+
+    const addLayer = React.useCallback(() => {
+        const prevActiveLayer = layers.find(layer => layer.active)
+        const newLayer = {
+            name: 'New Layer',
+            id: uuidv4(),
+            active: true,
+            visible: true
+        }
+        const action = new LayerCreateAction(newLayer, prevActiveLayer)
+        action.exec({setLayers})
+        pushAction(action)  
+    }, [layers])
+
+    return (
+        <div>
+            <Label>Layers<NewLayerButton onClick={addLayer}>+</NewLayerButton></Label>
+            <LayerOuterContainer>
+                {[...layers].reverse().map(layer => <Layer key={layer.id} layer={layer} />)}
+            </LayerOuterContainer>
+        </div>
+    )
+}
+
 export default function DrawingControls() {
     const [activeColor, setActiveColor] = React.useContext(Context.ActiveColorContext)
     const [gameState] = React.useContext(Context.GameStateContext)
@@ -382,7 +490,8 @@ export default function DrawingControls() {
                 <StrokeWidth />
                 <ClearButton />
                 <ColorPicker color={activeColor} onChange={setActiveColor} />
-                <ColorPalette />                
+                <ColorPalette />
+                <LayerList />                
             </ControlPanel>}
             {presentingSummary && <BookTitle />}
             {presentingSummary && <DeadSpaceTop />}
