@@ -1,6 +1,9 @@
 package backend
 import java.util.*
 import kotlinx.serialization.*
+import kotlinx.serialization.json.*
+import java.time.Duration;
+import java.time.Instant;
 
 @Serializable
 data class Player(val name: String) {
@@ -46,10 +49,16 @@ data class PresentationState(var bookOwner: String, var pageNumber: Int)
 @Serializable
 class GameState(val name: String, val creator: String, val id: String = UUID.randomUUID().toString()
     ,var gameSettings:GameSettings = GameSettings(5),
-    var gameStatus:GameStatus = GameStatus.NotStarted){
+    var gameStatus:GameStatus = GameStatus.NotStarted,
+    @Transient
+    val creationTime: Instant = Instant.now()) {
     val players = mutableListOf<Player>()
     val books = mutableListOf<Book>()
     var presentationState: PresentationState? = null
+
+    fun serialize(): String {
+        return Json { encodeDefaults = true ; prettyPrint = true }.encodeToString(this)
+    }
 
     fun startGame(settings: GameSettings?) {
         gameSettings = settings ?: gameSettings

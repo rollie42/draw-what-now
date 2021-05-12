@@ -36,6 +36,7 @@ function GameSubscriber() {
       console.log("subscribing")
       setSubscribed(true)
       GameApi.Subscribe(gameState.id, (message) => {
+        console.log(message.data)
         const newGameState = JSON.parse(message.data)
         console.log(newGameState)
         setGameState(newGameState)
