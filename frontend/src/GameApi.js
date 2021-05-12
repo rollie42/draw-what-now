@@ -36,6 +36,7 @@ async function Get(endpoint) {
 export const Subscribe = async (gameId, handler) => {
     const ws = new WebSocket(`${wsHost}/subscribe/${gameId}`);
     ws.onmessage = handler
+    return ws
 }
 
 export const GetState = async (gameId) => await Get(`state/${gameId}`)

@@ -32,16 +32,24 @@ function GameSubscriber() {
 
   // Handle subscribing if we are able to
   useEffect(() => {
-    if (!subscribed && gameState?.id) {
-      console.log("subscribing")
-      setSubscribed(true)
-      GameApi.Subscribe(gameState.id, (message) => {
-        console.log(message.data)
-        const newGameState = JSON.parse(message.data)
-        console.log(newGameState)
-        setGameState(newGameState)
-      })
+    const handler = async () => {
+      if (!subscribed && gameState?.id) {
+        console.log("subscribing")      
+        const sub = await GameApi.Subscribe(gameState.id, (message) => {
+          console.log(message.data)
+          const newGameState = JSON.parse(message.data)
+          console.log(newGameState)
+          setGameState(newGameState)
+        })
+        setSubscribed(sub)
+      }
+
+      if (subscribed && !gameState) {
+        subscribed.close()
+        setSubscribed(undefined)
+      }
     }
+    handler()
   }, [gameState, subscribed])
 
   return (<div></div>)
