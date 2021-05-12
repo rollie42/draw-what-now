@@ -1,26 +1,23 @@
 import React, { useEffect } from 'react'
-import { DrawingMode } from './Canvas'
+import Canvas, { DrawingMode } from './Canvas'
 import * as Context from '../Context'
-import CC from './Canvas.js'
 import styled from 'styled-components'
 import ReplayIcon from '@material-ui/icons/Replay'
 import { mousePosition } from '../App'
 import {useCanvasProps} from './CanvasProps'
 import { contextsToProps } from '../Utils'
 
-const _getPos = (canvas, event) => {
-    const rect = canvas.getBoundingClientRect()
-    const position = (event?.changedTouches && event.changedTouches[0]) || event
-    return { x: position.clientX - rect.left, y: position.clientY - rect.top }
-}
+import NotebookImage from '../images/note.png'
+import NotebookRingsImg from '../images/note-rings.png'
 
 const DescriptionContainer = styled.div`
-    margin-bottom: 45px;
-`
-
-const StyledImage = styled.img`
-    width: 100%;
-    height: 100%;
+    
+    background-color: #a4e6ff66;
+    position: absolute;
+    bottom: 1vh;
+    right: 10vh;
+    left: 10vh;
+    z-index: ${props => props.inputting ? '20' : '1'};
 `
 
 function lastEntry(book) {
@@ -33,7 +30,7 @@ function lastEntry(book) {
 const DescriptionInput = styled.input`
     background: none;
     width: 100%;
-    min-height: 60px;
+    min-height: 80px;
     font-size:40px;
     text-align:center;
     border: none;
@@ -81,7 +78,7 @@ function Description() {
         setDescription(event.target.value)
     }
     return (
-        <DescriptionContainer>
+        <DescriptionContainer inputting={activeBook && activeBook.entries.length % 2 === 0}>
             <DescriptionInput readOnly={readOnly} placeholder={helpText} value={description} onChange={descriptionChange} />
         </DescriptionContainer>
     )
@@ -153,18 +150,33 @@ function Keybinds(props) {
     return (<></>)
 }
 
+const ConvasBackgroundContainer = styled.div`
+`
 const ConvasAreaContainer = styled.div`
   position: relative;
-  flex: 1;
+  flex: 0;
+  min-width: 75vw;
   display: flex;
   flex-flow: column;
-  margin: 0px 10px;
-  background-image: url('notebook.png');
+  margin: 0px 0px;
+  background-image: url(${NotebookImage});
   background-size: 100% 100%;
   background-position: center;
-  padding: 10vh 8vh 0px 8vh;
+  padding: 5.2vh 2.8vw 7vh 1.1vw;
 `
 
+const NotebookRingsContainer = styled.div`
+    width: 100%;
+    height: 100%;
+    background-image: url(${NotebookRingsImg});
+    background-size: 100% 100%;
+    background-position: center;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+`
+
+// padding: 10vh 2.4vw 0px 0.9vw;
 const RequestReplayButton = styled.button`
     position: absolute;
     top: 0px;
@@ -179,6 +191,12 @@ const ReplayButtonStyled = styled.button`
     bottom: 70px;
 `
 
+const CanvasActiveArea = styled.div`
+    position: relative;
+    width: 100%;
+    height: 100%;
+`
+
 function ReplayButton(props) {
     return (
         <ReplayButtonStyled onClick={props.onClick}><ReplayIcon /></ReplayButtonStyled>
@@ -188,24 +206,9 @@ function ReplayButton(props) {
 export default function CanvasArea() {
     const [gameState] = React.useContext(Context.GameStateContext)
     const [activeBook] = React.useContext(Context.ActiveBookContext)
-    const [activeTool] = React.useContext(Context.ActiveToolContext)
-    const [activeShape] = React.useContext(Context.ActiveShapeContext)
     const [requestReplay, setRequestReplay] = React.useState(false)
 
-    // const [activeColor] = React.useContext(Context.ActiveColorContext)
-    // const [lineWidth, setLineWidth] = React.useContext(Context.LineWidthContext)
-    
-    // const [fillShape] = React.useContext(Context.FillShapeContext)
-    // const [, setColorPalette] = React.useContext(Context.ColorPalette)    
-    // const [staticImage, setStaticImage] = React.useContext(Context.StaticImageContext)
-    // const [replayDrawings, setReplayDrawings] = React.useContext(Context.ReplayDrawingsContext)
-    // const [requestClear, setRequestClear] = React.useContext(Context.RequestClearContext)
-    // const [layers] = React.useContext(Context.LayerContext)
-
-    // const [selected, setSelected] = React.useState(false)
-    // const [requestCopy, setRequestCopy] = React.useState(false)
-    // const [requestPaste, setRequestPaste] = React.useState(undefined)
-    // const [requestDelete, setRequestDelete] = React.useState(false)
+    const [activeColor] = React.useContext(Context.ActiveColorContext)
 
     const contextProps = contextsToProps({
         'activeColor': Context.ActiveColorContext,
@@ -217,6 +220,8 @@ export default function CanvasArea() {
         'requestClear': Context.RequestClearContext,
         'layers': Context.LayerContext,
         'actionHistory': Context.ActionHistoryContext,
+        'mode': Context.ActiveToolContext,
+        'shape': Context.ActiveShapeContext,
     })
     const canvasProps = useCanvasProps(contextProps)
 
@@ -240,21 +245,18 @@ export default function CanvasArea() {
     }, [gameState, activeBook])
 
     const wheelHandler = (e) => {
-        const d = canvasProps.lineWidth < 14 ? 1 : 2
-        if (e.deltaY < 0) {
-            canvasProps.setLineWidth(canvasProps.lineWidth + d)
-        } else if (e.deltaY > 0 && canvasProps.lineWidth > 1) {
-            canvasProps.setLineWidth(canvasProps.lineWidth - d)
-        }
+        const d = Math.trunc(canvasProps.lineWidth / 14) + 1
+        const w = canvasProps.lineWidth + (e.deltaY < 0 ? d : -d)
+        canvasProps.setLineWidth(Math.max(1, Math.min(w, 72)))
     }
 
-    const onDraw = (drawing) => {
+    const onDraw = React.useCallback(() => {
         canvasProps.setColorPalette(palette => {
-            if (!palette.includes(drawing.color))
-                return ([...palette, drawing.color])
+            if (!palette.includes(activeColor))
+                return ([...palette, activeColor])
             return palette
         })
-    }
+    }, [activeColor])
 
     // const activelyDrawing = activeBook && activeBook.entries.length % 2 === 1
     // const isDrawing = !gameState || gameState.gameStatus === "NotStarted" || activelyDrawing
@@ -270,21 +272,20 @@ export default function CanvasArea() {
         setRequestReplay(true)
     }, [gameState])
 
-    console.log(gameState)
-    console.log(canvasProps)
 
     return (
         <ConvasAreaContainer onWheel={wheelHandler}>
             <Keybinds {...canvasProps} />
-            <CC
-                mode={activeTool === 'draw-shape' ? activeShape : activeTool}
-                onDraw={onDraw}
-                // replayList={requestReplay ? replayDrawings : undefined} TODO
-                {...canvasProps}
+            <CanvasActiveArea>
+                <Canvas
+                    onDraw={onDraw}
+                    {...canvasProps}
 
-            />
-            {gameState?.isPresenting() && <ReplayButton onClick={handleRequestReplay} />}
-            <Description />
+                />                
+                {false && gameState?.isPresenting() && <ReplayButton onClick={handleRequestReplay} />}
+                <Description />                
+            </CanvasActiveArea>
+            <NotebookRingsContainer />
         </ConvasAreaContainer>
     )
 }

@@ -1,6 +1,7 @@
 import React from 'react'
 import styled from 'styled-components'
 import DrawingControls from './DrawingControls'
+import RightSide from './RightSide'
 import GameStateDetails from './GameStateDetails'
 import CanvasArea from './CanvasArea'
 
@@ -14,7 +15,8 @@ export default function MainContainer(props) {
         <Container>
             <DrawingControls />
             <CanvasArea />
-            <GameStateDetails />
+            <RightSide />            
+            {/* <GameStateDetails /> */}
         </Container>
     )
 }

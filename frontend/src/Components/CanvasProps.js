@@ -1,15 +1,17 @@
 import React from 'react'
 import { capitalize } from '../Utils'
+import { DrawingMode, Shapes } from './Canvas'
 
 export function useCanvasProps(propsIn) {
     const props = {...propsIn}
     const attrs = [
-        ['selected', false],
         ['requestCopy', false],
         ['requestPaste', undefined],
         ['requestDelete', false],
         ['requestUndo', false],
         ['requestRedo', false],
+        ['mode', DrawingMode.DRAW],
+        ['shape', Shapes.SQUARE],
     ]
 
     const refs = ['activeLayerCanvasRef', 'workingCanvasRef', 'uiCanvasRef']

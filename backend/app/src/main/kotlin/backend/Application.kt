@@ -1,5 +1,6 @@
 package backend
 
+import backend.backend.response.UndoSubmissionResponse
 import backend.user.*
 import backend.storage.*
 import java.util.concurrent.atomic.*
@@ -126,6 +127,18 @@ fun Application.module() {
             gameState.addBookEntry(book, DescriptionBookEntry(Player(description.user.name), description.description))
             games[gameState]?.send(gameState)
             call.respond(gameState)
+        }
+        post("/undoSubmission") {
+            val params = call.receive<backend.request.UndoSubmission>()
+            val gameState = games.keys.first{ it.id == params.gameId }
+            val book = gameState.books.first { it.creator.name == params.bookCreator }
+            if (book.entries.last()?.author?.name == params.user.name) {
+                val entry = gameState.undoSubmission(book)
+                call.respond(UndoSubmissionResponse(1, gameState, entry))
+                games[gameState]?.send(gameState)
+            } else {
+                call.respond(UndoSubmissionResponse(0, gameState))
+            }
         }
         post("/startPresentation") {
             val params = call.receive<backend.request.StartPresentation>()

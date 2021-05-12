@@ -3,23 +3,40 @@ import styled from 'styled-components'
 import * as Context from '../Context'
 import * as GameApi from '../GameApi'
 import { JoinGameDialog, CreateGameDialog } from './GameDialogs'
-import { Button } from '../Controls'
-import HourglassEmpty from '@material-ui/icons/HourglassEmpty'
-
+import {TutorialDialog} from './Turorial'
+import { ImageButton, Button } from '../Controls'
+import CreateGameImage from '../images/create-game.png'
+import JoinGameImage from '../images/join-game.png'
+import ExitGameImage from '../images/exit.png'
+import HelpImage from '../images/help.png'
+import LogoImage from '../images/logo.png'
+import PupImage from '../images/pup.png'
+import PupSpeechBehindImage from '../images/pup-speech-behind.png'
+import PupSpeechHurryImage from '../images/pup-speech-hurry.png'
 
 const TopControlContainer = styled.div`
     display: flex;
     align-items: center;
     color: #dddddd;
     font-size: 22px;
+    margin: 0px 10px;
 `
 
+const TopBarImageButton = (props) => (<ImageButton {...props} height="70px" />)
+
+const groupBy = (list, keyGetter) =>
+        list.reduce(function (r, a) {
+            r[keyGetter(a)] = r[keyGetter(a)] || [];
+            r[keyGetter(a)].push(a);
+            return r;
+        }, Object.create(null));
+        
 function JoinGame() {
     const [open, setOpen] = React.useState(false)
 
     return (
         <TopControlContainer>
-            <Button onClick={() => setOpen(true)}>Join Game</Button>
+            <TopBarImageButton onClick={() => setOpen(true)} image={JoinGameImage} ></TopBarImageButton>
             <JoinGameDialog open={open} setOpen={setOpen} />
         </TopControlContainer>
     )
@@ -30,7 +47,7 @@ function CreateGame() {
 
     return (
         <TopControlContainer>
-            <Button onClick={() => setOpen(true)}>Create Game</Button>
+            <TopBarImageButton onClick={() => setOpen(true)} image={CreateGameImage} ></TopBarImageButton>
             <CreateGameDialog open={open} setOpen={setOpen} />
         </TopControlContainer>
     )
@@ -46,86 +63,33 @@ function ExitGame() {
 
     return (
         <TopControlContainer>
-            <Button onClick={clickHandler}>Exit Game</Button>
+            <TopBarImageButton onClick={clickHandler} image={ExitGameImage} ></TopBarImageButton>
         </TopControlContainer>
     )
 }
 
-
-function TestGame() {
-    const [gameState, setGameState] = React.useContext(Context.GameStateContext)
-    const [, setUser] = React.useContext(Context.UserContext)
-
-    const testFunc = async () => {
-        setUser(await GameApi.Login("bob"))
-        const gs = await GameApi.GetFakeGame()
-        setGameState(gs)
-        return
-
-        const users = []
-        users.push(
-            await GameApi.Login("bob"),
-            await GameApi.Login("sam"),
-            await GameApi.Login("jenny"),
-            await GameApi.Login("mark"),
-            await GameApi.Login("takeshi")
-        )
-
-        const creator = users[0]
-
-        setUser(creator)
-
-        const gameName = "Test Game" + Math.floor(Math.random() * Math.floor(10000))
-        console.log("creating game")
-        var testGameState = await GameApi.CreateGame(gameName, creator)
-        setGameState(testGameState)
-
-        console.log("having users join game")
-        for (const user of users) {
-            await GameApi.JoinGame(gameName, user)
-        }
-
-        console.log("starting game")
-        testGameState = await GameApi.StartGame(testGameState.id, { rounds: 5 }, creator)
-        setGameState(testGameState)
-        const imageData = undefined
-
-        while (true) {
-            const book = testGameState.books.filter(b => b.actors[0])[0]
-            if (!book)
-                break
-
-            const user = book.actors[0]
-            if (book.entries.length % 2 === 0) { // describe
-                testGameState = await GameApi.UploadDescription("Test Description" + book.entries.length, testGameState.id, book.creator.name, user)
-            } else { // draw
-                testGameState = await GameApi.UploadDrawing(imageData, testGameState.id, book.creator.name, user)
-            }
-        }
-
-        // console.log("submitting descriptions")
-        // console.log(testGameState)
-        // for (const user of users) {//.filter(user => user.name != creator.name)) {
-        //     const book = testGameState.books.filter(book => book.actors[0]?.name == user.name)[0]
-        //     console.log(user.name, book?.actors[0]?.name, book)
-        //     if (book)
-        //         await GameApi.UploadDescription("Test Description", testGameState.id, book.creator.name, user)
-        // }
+function Help() {
+    const [open, setOpen] = React.useState(false)
+    const clickHandler = () => {
+        setOpen(true)
     }
 
     return (
         <TopControlContainer>
-            <Button onClick={testFunc}>Test Game</Button>
+            <TopBarImageButton onClick={clickHandler} image={HelpImage} ></TopBarImageButton>
+            <TutorialDialog open={open} setOpen={setOpen} />
         </TopControlContainer>
     )
 }
 
-const Container = styled.div`
+const TopBarContainer = styled.div`
     width: 100%;
-    height: 50px;
-    background-color: #111111aa;
+    height: 75px;
+    background-color: #FFBF76;
     display: flex;
     justify-content: flex-end;
+    margin-bottom: 12px;
+    padding-left: 8px;
 `
 
 const DeadSpace = styled.div`
@@ -141,72 +105,65 @@ const SVG = styled.svg`
     ${props => props.selected && `background-color: #222222;`}
 `
 
-const HourGlassContainer = styled.div`
+function Logo() {
+    return (
+        <TopBarImageButton image={LogoImage} ></TopBarImageButton>
+    )
+}
+
+const PupSpeechContainer = styled.img`
+    width: 130px;
+    height: 80px;
     position: absolute;
-    left: 6px;
-    top: 2px;
-    font-size: 44px;
+    left:20px;
+    top: 5px;
 `
 
-
-function HourGlass() {
+const PupContainer = styled.div`
+    position: relative;
+`
+function Pup() {
     const [gameState] = React.useContext(Context.GameStateContext)
     const [user] = React.useContext(Context.UserContext)
 
-    const groupBy = (list, keyGetter) =>
-        list.reduce(function (r, a) {
-            r[keyGetter(a)] = r[keyGetter(a)] || [];
-            r[keyGetter(a)].push(a);
-            return r;
-        }, Object.create(null));
-
-    var color = "green"
+    var img = ""
     console.log(gameState)
-    const entries = gameState.books.map(book => book.entries).flat().filter(entry => entry.imageUrl)
-    if (entries.length) {
-
+    const entries = gameState?.books?.map(book => book.entries).flat().filter(entry => entry.imageUrl)
+    if (entries?.length) {
         const groups = groupBy(entries, entry => entry.author.name)
         const imagesDone = Object.values(groups).map(arr => arr.length).sort()
         const median = imagesDone[Math.floor(imagesDone.length / 2)]
         const userCompleted = groups[user.name]?.length || 0
-        color = userCompleted >= median
-            ? "green"
+        img = userCompleted >= median
+            ? ""
             : userCompleted >= median - 1
-                ? "yellow"
-                : "red"
-    }
-    const r = 35
-    const fontStyle = {
-        position: 'absolute',
-        left: 15,
-        top: 13,
-        color: "#222222",
-        fontSize: "48px"
+                ? PupSpeechBehindImage
+                : PupSpeechHurryImage
     }
     return (
-        <HourGlassContainer>
-            <SVG>
-                <circle cx={r} cy={r} r={r} stroke={color} strokeWidth="1" fill={color} />
-            </SVG>
-            <HourglassEmpty style={fontStyle} />
-        </HourGlassContainer>
-    )
+        <PupContainer>
+            <TopBarImageButton image={PupImage} ></TopBarImageButton>
+            {img && <PupSpeechContainer src={img}/>}
+        </PupContainer>
+        )
 }
 
 export default function TopBar() {
     const [gameState] = React.useContext(Context.GameStateContext)
     return (
-        <Container>
-            {gameState?.gameStatus === "InProgress" && <HourGlass />}
+        <TopBarContainer>
+            <Pup />
+            <DeadSpace />
+            <Logo />
             <DeadSpace />
             {!gameState &&
                 <>
                     <JoinGame />
                     <CreateGame />
-                    <ExitGame />
                 </>
             }
-
-        </Container>
+            {gameState && <ExitGame />}
+            <Help />
+        </TopBarContainer>
     )
 }

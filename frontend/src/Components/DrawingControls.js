@@ -1,17 +1,9 @@
 import React, { useEffect } from 'react'
 import styled from 'styled-components'
 import * as Context from '../Context'
-import ToggleButton from '@material-ui/lab/ToggleButton';
-import ToggleButtonGroup from '@material-ui/lab/ToggleButtonGroup';
 import {sleep} from '../Utils'
-import { DrawingMode } from './Canvas'
-import { RgbaStringColorPicker } from "react-colorful";
+import { DrawingMode, Shapes } from './Canvas'
 import "react-colorful/dist/index.css"
-import { v4 as uuidv4 } from 'uuid'
-import DeleteLayerIcon from '@material-ui/icons/Close'
-import VisibleIcon from '@material-ui/icons/Visibility'
-import NotVisibleIcon from '@material-ui/icons/VisibilityOff'
-import { LayerCreateAction, LayerToggleAction, LayerDeleteAction, LayerSelectAction } from '../History'
 
 import PaintBrushImg from '../images/paint-brush.png'
 import ShapeToolImg from '../images/shape-tool.png'
@@ -20,126 +12,26 @@ import PaintBucketImg from '../images/paint-bucket.png'
 import EraserImg from '../images/eraser.png'
 import SelectRegion from '../images/select-region.png'
 import Hand from '../images/hand.png'
+import UndoImg from '../images/undo.png'
+import RedoImg from '../images/redo.png'
+import SquareImg from '../images/square.png'
+import SquareFilledImg from '../images/square-filled.png'
+import CircleImg from '../images/circle.png'
+import CircleFilledImg from '../images/circle-filled.png'
+import TriangleImg from '../images/triangle.png'
+import TriangleFilledImg from '../images/triangle-filled.png'
+import { withStyles } from '@material-ui/core';
 
-const Container = styled.div`
-    min-width: 28vh;
+const Container = styled.div`    
     display: flex;
     flex-direction: column;
     height: 100%;
 `
 
 const ControlPanel = styled.div`
-    background-color: #080808aa;
-    color: #e6e6e6;
-    width: 25vh;
-    padding: 20px 10px;
-    margin: 30px 50px;
-    min-height: 80%;
+    text-align: left;
+    margin-top:100px;
 `
-
-const SVG = styled.svg`
-    display: inline-flex;
-    width: 30px;
-    height: 30px;
-    margin: 0px 2px;
-    padding: 3px;
-    ${props => props.selected && `background-color: #222222;`}
-`
-
-const getRGB = (hexColor) => {
-    var match = hexColor.match(/rgba?\((\d{1,3}), ?(\d{1,3}), ?(\d{1,3})\)?(?:, ?(\d(?:\.\d+)?)\))?/);
-    return match ? {
-        red: match[1],
-        green: match[2],
-        blue: match[3],
-        alpha: match[4]
-    } : {};
-}
-
-function colorsEqual(c1, c2) {
-    const o1 = getRGB(c1)
-    const o2 = getRGB(c2)
-    return o1.red === o2.red && o1.green === o2.green && o1.blue === o2.blue && Math.abs(o1.alpha - o2.alpha) < .1
-}
-
-function ColorCircle(props) {
-    const [activeColor, setActiveColor] = React.useContext(Context.ActiveColorContext)
-    const [colorPalette, setColorPalette] = React.useContext(Context.ColorPalette)
-    
-    const clickHandler = React.useCallback((e) => {
-        e.preventDefault()
-        if (e.type === "click")
-            setActiveColor(props.color)
-        else if (e.type === 'contextmenu')
-            setColorPalette(colorPalette.filter(color => color != props.color))
-    }, [colorPalette, activeColor])
-    return (
-        <SVG onContextMenu={clickHandler} onClick={clickHandler} selected={colorsEqual(activeColor, props.color)}>
-            <circle cx="15" cy="15" r="15" stroke={props.color} strokeWidth="1" fill={props.color} />
-        </SVG>
-    )
-}
-
-const ColorCircleContainer = styled.div`
-    display: flex;
-    justify-content: left;
-    align-items: center;
-    min-height: 30px;
-    flex-wrap: wrap;
-`
-const ColorPaletteContainer = styled.div`
-    margin-top: 8px;
-`
-
-const Label = styled.div`
-`
-
-const ClearButtonStyled = styled.button`
-`
-
-function ClearButton() {
-    const [, setRequestClear] = React.useContext(Context.RequestClearContext)
-
-    return (
-        <ClearButtonStyled onClick={() => setRequestClear(true)}>Clear canvas</ClearButtonStyled>
-    )
-}
-function ColorPalette() {
-    const [colorPalette] = React.useContext(Context.ColorPalette)
-
-    return (
-        <ColorPaletteContainer>
-            <Label>Palette</Label>
-            <ColorCircleContainer>
-                {colorPalette.map((value) => {
-                    return <ColorCircle key={value} color={value} />
-                })}
-            </ColorCircleContainer>
-        </ColorPaletteContainer>
-    )
-}
-
-const StrokeWidthContainer = styled.div`
-`
-
-const StrokeWidthValue = styled.input`
-    width: 20px;
-`
-
-function StrokeWidth() {
-    const [lineWidth, setLineWidth] = React.useContext(Context.LineWidthContext)
-
-    const handler = (e) => {
-        const val = e.target.value
-        setLineWidth(val)
-    }
-    return (
-        <StrokeWidthContainer>
-            <Label>Stroke width</Label>
-            <StrokeWidthValue value={lineWidth} inputmode="numeric" min="1" max="72" onChange={handler}></StrokeWidthValue>
-        </StrokeWidthContainer>
-    )
-}
 
 const LabelContainer = styled.div`
     font-size: 30px;
@@ -224,6 +116,7 @@ function ImageLabel() {
         const presentationState = gameState.presentationState
         const book = gameState.books.find(b => b.creator.name === presentationState.bookOwner)
         var entry = book.entries[presentationState.pageNumber]
+        console.log(presentationState, book.entries)
         if (entry.description && presentationState.pageNumber > 0)
             entry = book.entries[presentationState.pageNumber - 1]
 
@@ -264,10 +157,11 @@ function ImageLabel() {
 
 const BookTitleContainer = styled.div`    
     font-family: 'Shadows Into Light', cursive;
-    font-size: 68px;
+    font-size: 100px;
     position: fixed;
     color: #7F0037;
     transform: translate(130px, -15px) rotate(-18deg);    
+    z-index: 3;
 `
 
 function BookTitle() {
@@ -286,199 +180,119 @@ const DeadSpaceTop = styled.div`
     flex: 1;
 `
 
-const ToggleButtonStyled = styled(ToggleButton)`
-`
 
 const ToggleButtonImage = styled.img`
-    width: 26px;
-    height: 26px;
+    width: 38px;
+    height: 38px;
 `    
+const ToolButtonContainer = styled.div`
+    position: relative;
+`
+const ToggleButton = styled.button`
+    
+    background: ${props => props.selected ? 'rgba(0,0,0,0.12)' : 'none'};
+    border: 1px solid rgba(0,0,0,0.12);
+    padding: 11px;
+    cursor: pointer;
 
-const ToggleButtonGroupStyled = styled(ToggleButtonGroup)`
-    display: flex;
-    flex-wrap: wrap;
+    :hover {
+        background-color: ${props => props.selected ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.05)'};
+    }
+    
 `
 
-function ToolSelector() {
+function ToolButton({img, mode, children}) {
     const [activeTool, setActiveTool] = React.useContext(Context.ActiveToolContext);
+    const clickHandler = () => {
+        setActiveTool(mode)
+    }
+
     return (
-        <ToggleButtonGroupStyled value={activeTool} exclusive onChange={(event, newTool) => newTool && setActiveTool(newTool)}>
-            <ToggleButtonStyled value={DrawingMode.DRAW}>
-                <ToggleButtonImage src={PaintBrushImg} />
-            </ToggleButtonStyled>
-            <ToggleButtonStyled value={'draw-shape'} >
-                <ToggleButtonImage src={ShapeToolImg} />
-            </ToggleButtonStyled>
-            <ToggleButtonStyled value={DrawingMode.DRAW_LINE} >
-                <ToggleButtonImage src={LineToolImg} />
-            </ToggleButtonStyled>
-            <ToggleButtonStyled value={DrawingMode.FILL} >
-                <ToggleButtonImage src={PaintBucketImg} />
-            </ToggleButtonStyled>
-            <ToggleButtonStyled value={DrawingMode.ERASE} >
-                <ToggleButtonImage src={EraserImg} />
-            </ToggleButtonStyled>
-            <ToggleButtonStyled value={DrawingMode.SELECT} >
-                <ToggleButtonImage src={SelectRegion} />
-            </ToggleButtonStyled>
-            <ToggleButtonStyled value={DrawingMode.MOVE} >
-                <ToggleButtonImage src={Hand} />
-            </ToggleButtonStyled>
-        </ToggleButtonGroupStyled>
+        <ToolButtonContainer>
+            <ToggleButton onClick={clickHandler} selected={activeTool === mode}>
+                <ToggleButtonImage src={img}/>
+            </ToggleButton>
+            {children}
+        </ToolButtonContainer>
     )
 }
 
-const Select = styled.select`
+const ToolSelectorContainer = styled.div`
 `
 
-const ShapeOptionsContainer = styled.div`    
+function ToolSelector() {
+    return (
+        <ToolSelectorContainer>
+            <ToolButton mode={DrawingMode.DRAW} img={PaintBrushImg} />
+            <ToolButton mode={'draw-shape'} img={ShapeToolImg}>
+                <ShapeSelector />
+            </ToolButton>
+            <ToolButton mode={DrawingMode.DRAW_LINE} img={LineToolImg} />
+            <ToolButton mode={DrawingMode.FILL} img={PaintBucketImg} />
+            <ToolButton mode={DrawingMode.ERASE} img={EraserImg} />
+            <ToolButton mode={DrawingMode.SELECT} img={SelectRegion} />
+            <ToolButton mode={DrawingMode.MOVE} img={Hand} />
+        </ToolSelectorContainer>
+    )
+}
+
+const ShapeOptionsContainer = styled.div`
+    z-index: 2;
+    position: absolute;
+    background-color: #FFE895;
+    top: 0px;
+    left:60px;
     overflow: hidden;
-    ${({ state }) => (state === "exited") ? `
-        max-height: 0px;
-        transition: max-height .4s ease-in-out;` : `
-    
-        max-height: 200px;
-        transition: max-height .7s ease-in-out;`
-    };
+    max-width: 0px;
+    transition: max-width .1s ease-in-out;
+
+    ${ToolButtonContainer}:hover & {
+        max-width: 200px;
+        transition: max-width .2s ease-in-out;
+    }
 `
-const Checkbox = styled.input.attrs({ type: 'checkbox'})`
+
+function ShapeButton({img, shape, filled}) {    
+    const [activeShape, setActiveShape] = React.useContext(Context.ActiveShapeContext)
+    const [fillShape, setFillShape] = React.useContext(Context.FillShapeContext)
+    const [, setActiveTool] = React.useContext(Context.ActiveToolContext);
+    
+    const clickHandler = () => {
+        setActiveShape(shape)
+        setFillShape(filled)
+        setActiveTool(DrawingMode.DRAW_SHAPE)
+    }
+    return (
+        <ToggleButton onClick={clickHandler} selected={activeShape === shape && fillShape === filled}>
+            <ToggleButtonImage src={img}/>
+        </ToggleButton>
+    )
+}
+
+const ShapeRow = styled.div`
+    white-space: nowrap;
 `
 
 function ShapeSelector() {
     const [activeTool] = React.useContext(Context.ActiveToolContext)
-    const [activeShape, setActiveShape] = React.useContext(Context.ActiveShapeContext)
-    const [fillShape, setFillShape] = React.useContext(Context.FillShapeContext)
-    const options = [
-        { label: 'Square', value: DrawingMode.DRAW_SQUARE},
-        { label: 'Circle', value: DrawingMode.DRAW_CIRCLE},
-        { label: 'Triangle', value: DrawingMode.DRAW_TRIANGLE}
-    ]
-    const setter = (evt) => {setActiveShape(evt.target.value) }
     return (        
-        <ShapeOptionsContainer state={activeTool === 'draw-shape' ? 'show' : 'exited'}>
-            <label>Shape</label>
-            <div>
-                <Select value={activeShape} onChange={setter} >
-                    {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </Select>
-                <Checkbox checked={fillShape} onChange={event => setFillShape(event.target.checked)} />
-                <label>Fill?</label>
-            </div>         
-
-
+        <ShapeOptionsContainer show={activeTool === DrawingMode.DRAW_SHAPE}>
+            <ShapeRow>
+                <ShapeButton img={SquareFilledImg} shape={Shapes.SQUARE} filled={true} />
+                <ShapeButton img={CircleFilledImg} shape={Shapes.CIRCLE} filled={true} />
+                <ShapeButton img={TriangleFilledImg} shape={Shapes.TRIANGLE} filled={true} />
+            </ShapeRow>
+            <ShapeRow>
+                <ShapeButton img={SquareImg} shape={Shapes.SQUARE} filled={false} />
+                <ShapeButton img={CircleImg} shape={Shapes.CIRCLE} filled={false} />
+                <ShapeButton img={TriangleImg} shape={Shapes.TRIANGLE} filled={false} />
+            </ShapeRow>
         </ShapeOptionsContainer>
     )
 }
 
-const ColorPicker = styled(RgbaStringColorPicker)`
-    width: 100%;
-`
-
-const LayerOuterContainer = styled.div`
-    width: 100%;
-`
-const LayerContainer = styled.div`
-    width: 100%;
-    display: flex;
-    background-color: ${props => props.active ? 'grey' : 'black'}
-`
-
-const VisibleToggleContainer = styled.span`
-
-`
-
-function VisibleToggle({layer}) {
-    const [layers, setLayers] = React.useContext(Context.LayerContext)
-    const [, , pushAction] = React.useContext(Context.ActionHistoryContext)
-
-    const toggleVisible = React.useCallback((e) => {
-        e.stopPropagation()
-        const action = new LayerToggleAction(layer)
-        action.exec({setLayers})
-        pushAction(action)
-    }, [layers])
-
-    return (
-        <VisibleToggleContainer onClick={toggleVisible}>
-        {layer.visible && <VisibleIcon />}
-        {!layer.visible && <NotVisibleIcon />}
-        </VisibleToggleContainer>
-    )
-}
-
-const LayerText = styled.span`
-    flex: 1;
-`
-
-function Layer({layer}) {
-    const [layers, setLayers] = React.useContext(Context.LayerContext)
-    const [, , pushAction] = React.useContext(Context.ActionHistoryContext)
-    
-    const selectLayer = React.useCallback(() => {
-        if (layer.active)
-            return
-
-        const currentLayer = layers.find(layer => layer.active)
-        const action = new LayerSelectAction(layer, currentLayer)
-        action.exec({setLayers})
-        pushAction(action)
-    }, [layers])
-
-    const deleteLayer = React.useCallback((e) => {
-        e.stopPropagation()
-        if (layers.length === 1)
-            return
-
-        let idx = layers.findIndex(l => l.id === layer.id)
-        const action = new LayerDeleteAction(layer, idx)
-        action.exec({setLayers})
-        pushAction(action)
-    }, [layers])
-
-    console.log(layer)
-
-    return (
-        <LayerContainer onClick={selectLayer} active={layer.active}>
-            <VisibleToggle layer={layer} />
-            <LayerText>{layer.name}</LayerText>
-            <DeleteLayerIcon onClick={deleteLayer}/>
-        </LayerContainer>
-    )
-}
-
-const NewLayerButton = styled.button`
-
-`
-
-function LayerList() {
-    const [layers, setLayers] = React.useContext(Context.LayerContext)
-    const [, , pushAction] = React.useContext(Context.ActionHistoryContext)
-
-    const addLayer = React.useCallback(() => {
-        const prevActiveLayer = layers.find(layer => layer.active)
-        const newLayer = {
-            name: 'New Layer',
-            id: uuidv4(),
-            active: true,
-            visible: true
-        }
-        const action = new LayerCreateAction(newLayer, prevActiveLayer)
-        action.exec({setLayers})
-        pushAction(action)  
-    }, [layers])
-
-    return (
-        <div>
-            <Label>Layers<NewLayerButton onClick={addLayer}>+</NewLayerButton></Label>
-            <LayerOuterContainer>
-                {[...layers].reverse().map(layer => <Layer key={layer.id} layer={layer} />)}
-            </LayerOuterContainer>
-        </div>
-    )
-}
 
 export default function DrawingControls() {
-    const [activeColor, setActiveColor] = React.useContext(Context.ActiveColorContext)
     const [gameState] = React.useContext(Context.GameStateContext)
     const presentingSummary = ["PresentingSummary"].includes(gameState?.gameStatus)
 
@@ -486,12 +300,6 @@ export default function DrawingControls() {
         <Container>
             {!["PresentingSummary", "Completed"].includes(gameState?.gameStatus) && <ControlPanel>
                 <ToolSelector />
-                <ShapeSelector />
-                <StrokeWidth />
-                <ClearButton />
-                <ColorPicker color={activeColor} onChange={setActiveColor} />
-                <ColorPalette />
-                <LayerList />                
             </ControlPanel>}
             {presentingSummary && <BookTitle />}
             {presentingSummary && <DeadSpaceTop />}

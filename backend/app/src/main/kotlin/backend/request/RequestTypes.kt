@@ -26,6 +26,9 @@ data class UploadDrawing(val gameId: String, val bookCreator: String, val imageD
 data class UploadDescription(val gameId: String, val bookCreator: String, val description: String, val user: GameUser)
 
 @Serializable
+data class UndoSubmission(val gameId: String, val bookCreator: String, val user: GameUser)
+
+@Serializable
 data class StartPresentation(val gameId: String, val user: GameUser)
 
 @Serializable

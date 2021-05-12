@@ -72,7 +72,6 @@ function DoneButton() {
             await GameApi.UploadDescription(description, gameState.id, activeBook.creator.name, user)
         }
         setActiveBook(null)
-
     }
 
     return (
@@ -180,7 +179,7 @@ export default function GameStateDetails() {
     const [gameState] = React.useContext(Context.GameStateContext)
     const [user] = React.useContext(Context.UserContext)
     const [activeBook] = React.useContext(Context.ActiveBookContext)
-    const readyToPresent = gameState && gameState.gameStatus === "InProgress" && !gameState.books.some(book => book.actors?.length)
+    const readyToPresent = gameState && gameState.gameStatus === "InProgress" && !gameState.books.some(book => book.currentActor())
     const isGameOwner = gameState && user?.name === gameState?.creator
 
     return (

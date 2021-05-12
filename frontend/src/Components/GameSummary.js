@@ -50,9 +50,14 @@ function BookSummary({ book }) {
 }
 export function GameSummary(props) {
     const [open, setOpen] = React.useState(true)
-    const [gameState] = React.useContext(Context.GameStateContext)
+    const [gameState, setGameState] = React.useContext(Context.GameStateContext)
+    const [, setUser] = React.useContext(Context.UserContext)
 
-
+    const exitGame = () => {
+        setGameState(undefined)
+        setUser(undefined)
+        setOpen(false)
+    }
     console.log(open)
     return (
         <DialogContainer style={{ overlay: { display: 'flex', alignItems: 'center', justifyContent: 'center' } }} onRequestClose={() => setOpen(false)} isOpen={open}>
@@ -61,7 +66,7 @@ export function GameSummary(props) {
             </div>
 
             <div>
-                <Button onClick={() => { }}>Exit game</Button>
+                <Button onClick={exitGame}>Exit game</Button>
             </div>
         </DialogContainer>
     )

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { DrawingMode } from './Components/Canvas'
-import GameState from './GameState'
+import { DrawingMode, Shapes } from './Components/Canvas'
+import { GameState } from './GameState'
 import Cookies from 'js-cookie'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -13,7 +13,7 @@ export const LineWidthContext = React.createContext(1)
 export const TasksContext = React.createContext([])
 export const GameStateContext = React.createContext(null)
 export const ActiveToolContext = React.createContext(DrawingMode.DRAW)
-export const ActiveShapeContext = React.createContext(DrawingMode.DRAW_SQUARE)
+export const ActiveShapeContext = React.createContext(Shapes.SQUARE)
 export const FillShapeContext = React.createContext(true)
 export const DescriptionContext = React.createContext("")
 export const StaticImageContext = React.createContext("")
@@ -27,6 +27,7 @@ const defaultLayer = {
 }
 export const LayerContext = React.createContext([defaultLayer])
 export const ActionHistoryContext = React.createContext([])
+export const RecentSubmissionContext = React.createContext(undefined)
 
 export function AppContextProvider(props) {
     const [user, setUser] = React.useState(null)
@@ -46,17 +47,17 @@ export function AppContextProvider(props) {
     const [gameState, setGameState] = React.useState(null)
     const setGameStateWrapper = (gs) => {
         console.log(gs)
-        if (gs) {
-            Cookies.set("gameState", gs)
+        if (gs && gs.type !== "error") {
+            console.log(gs)
+            Cookies.set("gameState", gs)            
             setGameState(new GameState(gs))
         } else {
             Cookies.remove("gameState")
             setGameState(undefined)
         }
-
     }
     const [activeTool, setActiveTool] = React.useState(DrawingMode.DRAW)
-    const [activeShape, setActiveShape] = React.useState(DrawingMode.DRAW_SQUARE)
+    const [activeShape, setActiveShape] = React.useState(Shapes.SQUARE)
     const [fillShape, setFillShape] = React.useState(true)
     const [description, setDescription] = React.useState("")
     const [staticImage, setStaticImage] = React.useState("")
@@ -66,21 +67,10 @@ export function AppContextProvider(props) {
     const [actionHistory, setActionHistory] = React.useState([])
     const pushAction = (action) => {
         setActionHistory(actions => {
-            const firstInactiveIdx = actions.findIndex(action => !action.active)
-            return [...actions.slice(0, Math.min(0, firstInactiveIdx)), action]
+            return [...actions.filter(a => a.active), action]
         })
     }
-
-    const undoAction = React.useContext(() => {
-        const lastIdx = actionHistory.length - 1
-        const lastActiveIdx = actionHistory.findIndex((action, idx) => action.active && (idx === lastIdx || actionHistory[idx+1].active === false))
-        if (lastActiveIdx === -1)
-            return undefined
-
-        actionHistory[lastActiveIdx].active = false
-        setActionHistory([...actionHistory])
-    }, [actionHistory])
-
+    const [recentSubmission, setRecentSubmission] = React.useState(undefined)
     return (
         <UserContext.Provider value={[user, setUserWrapper]}>
             <ActiveBookContext.Provider value={[activeBook, setActiveBook]}>
@@ -98,7 +88,9 @@ export function AppContextProvider(props) {
                                                             <RequestClearContext.Provider value={[requestClear, setRequestClear]}>
                                                                 <LayerContext.Provider value={[layers, setLayers]}>
                                                                     <ActionHistoryContext.Provider value={[actionHistory, setActionHistory, pushAction]}>
-                                                                        {props.children}
+                                                                        <RecentSubmissionContext.Provider value={[recentSubmission, setRecentSubmission]}>
+                                                                            {props.children}
+                                                                        </RecentSubmissionContext.Provider>
                                                                     </ActionHistoryContext.Provider>
                                                                 </LayerContext.Provider>
                                                             </RequestClearContext.Provider>
@@ -114,7 +106,6 @@ export function AppContextProvider(props) {
                     </ColorPalette.Provider>
                 </ActiveColorContext.Provider>
             </ActiveBookContext.Provider>
-
         </UserContext.Provider>
     )
 }

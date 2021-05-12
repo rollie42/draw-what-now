@@ -4,9 +4,9 @@ var backendHost = 'http://localhost:4000';
 // TODO: should this be wss?
 var wsHost = 'ws://localhost:4000'
 
-if (hostname.includes('drawing-game-webapp')) {
-    backendHost = 'https://drawing-game-api-72bwvupbta-uw.a.run.app';
-    wsHost = 'wss://drawing-game-api-72bwvupbta-uw.a.run.app';
+if (hostname.includes('drawwhatnow')) {
+    backendHost = 'https://api.drawwhatnow.com';
+    wsHost = 'wss://api.drawwhatnow.com';
 }
 
 async function Post(endpoint, body) {
@@ -46,6 +46,7 @@ export const JoinGame = async (gameName, user) => await Post("joinGame", { gameN
 export const StartGame = async (gameId, settings, user) => await Post("startGame", { gameId, settings, user })
 export const UploadDrawing = async (imageData, gameId, bookCreator, replayDrawings, user) => await Post("uploadDrawing", { imageData, gameId, bookCreator, user, replayDrawings })
 export const UploadDescription = async (description, gameId, bookCreator, user) => await Post("uploadDescription", { description, gameId, bookCreator, user })
+export const UndoSubmission = async (gameId, bookCreator, user) => await Post("undoSubmission", {gameId, bookCreator, user})
 export const StartPresentation = async (gameId, user) => await Post("startPresentation", { gameId, user })
 export const PresentNext = async (gameId, user) => await Post("presentNext", { gameId, user })
 export const EndGame = async (gameId, user) => await Post("endGame", { gameId, user })

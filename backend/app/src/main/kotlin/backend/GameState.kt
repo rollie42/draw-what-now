@@ -82,7 +82,6 @@ class GameState(val name: String, val creator: String, val id: String = UUID.ran
     // Called once an actor has completed a task
     fun addBookEntry(book: Book, entry: BookEntry) {
         book.entries += entry
-        book.actors.removeFirst()
     }
 
     fun startPresentation() {
@@ -106,5 +105,11 @@ class GameState(val name: String, val creator: String, val id: String = UUID.ran
 
     fun endGame() {
         gameStatus = GameStatus.Complete
+    }
+
+    fun undoSubmission(book: Book): BookEntry {
+        val entry = book.entries.last()
+        book.entries.removeLast()
+        return entry
     }
 }

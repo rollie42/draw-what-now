@@ -5,7 +5,6 @@ import * as Context from './Context'
 import styled from 'styled-components'
 import { createGlobalStyle } from 'styled-components'
 import MainContainer from './Components/MainContainer'
-import TaskList from './Components/TaskList'
 import TopBar from './Components/TopBar'
 import Cookies from 'js-cookie'
 import { GameSummary } from './Components/GameSummary'
@@ -22,7 +21,7 @@ function GameSubscriber() {
     const handler = async () => {
       const gs = Cookies.getJSON('gameState')
       const u = Cookies.getJSON('user')
-      if (false && u && gs) { // TODO
+      if (u && gs) {
         console.log(undefined)
         setUser(u)
         setGameState(gs)
@@ -50,7 +49,7 @@ const Container = styled.div`
     display: flex;
     flex-flow: column;
     height: 100vh;
-    background: url('bg.jpg')
+    background-color: #FFE895;
 `
 
 const AppStyle = createGlobalStyle`
@@ -79,6 +78,37 @@ function GameAudio() {
   )  
 }
 
+function useActiveBook() {
+
+}
+
+function ActiveBook() {
+  const [gameState] = React.useContext(Context.GameStateContext)
+  var [activeBook, setActiveBook] = React.useContext(Context.ActiveBookContext)
+  const [user] = React.useContext(Context.UserContext)
+  React.useEffect(() => {
+    if (!gameState) return
+
+    const availableBooks = gameState
+      .books
+      .filter(book => book.currentActor()?.name === user.name)
+      .sort((a,b) => b.entries.length - a.entries.length)
+    
+    if (!availableBooks.some(b => b.creator.name === activeBook?.creator?.name)) {
+      // TODO: The currently active book isn't active - presumably retracted 
+      // (notify box)
+      // setNotificationMessage("This page has been retracted")
+      activeBook = undefined
+    }
+
+    setActiveBook(activeBook ?? availableBooks[0])
+  }, [activeBook, gameState, user])
+
+  return (
+    <></>
+  )
+}
+
 export var mousePosition = undefined
 
 function PageContent() {
@@ -96,6 +126,7 @@ function PageContent() {
 
         <GameSubscriber />
         <GameAudio />
+        <ActiveBook />
         {gameState?.isGameOver() && <GameSummary />}
       </Container>
     </>
