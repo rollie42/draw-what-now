@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import Canvas, { DrawingMode } from './Canvas'
+import Canvas, { DrawingMode, getDrawing } from './Canvas'
 import * as Context from '../Context'
 import styled from 'styled-components'
 import ReplayIcon from '@material-ui/icons/Replay'
@@ -9,6 +9,7 @@ import { contextsToProps } from '../Utils'
 
 import NotebookImage from '../images/note.png'
 import NotebookRingsImg from '../images/note-rings.png'
+import SaveIcon from '@material-ui/icons/Save'
 
 const DescriptionContainer = styled.div`
     
@@ -200,6 +201,41 @@ function ReplayButton(props) {
     )
 }
 
+const SaveButtonStyled = styled.a`
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    width: 40px;
+    z-index: 20;
+    cursor: pointer;
+    color: grey;}
+`
+
+function SaveButton() {
+    const [layers] = React.useContext(Context.LayerContext)
+    const btnRef = React.useRef()
+
+    const clickHandler = () => {
+        console.log('...')
+        const data = getDrawing(layers)
+        btnRef.current.href = data
+    }
+
+    return (
+        <SaveButtonStyled
+            ref={btnRef}
+            onClick={clickHandler}
+            download='DWNImage.png'>
+            <SaveIcon 
+                 style={{
+                    width: '100%',
+                    height: '100%'
+                }}
+            />
+         </SaveButtonStyled>
+    )
+}
+
 export default function CanvasArea() {
     const [gameState] = React.useContext(Context.GameStateContext)
     const [activeBook] = React.useContext(Context.ActiveBookContext)
@@ -280,8 +316,9 @@ export default function CanvasArea() {
                 />                
                 {false && gameState?.isPresenting() && <ReplayButton onClick={handleRequestReplay} />}
                 <Description />                
+                <SaveButton />
             </CanvasActiveArea>
-            <NotebookRingsContainer />
+            <NotebookRingsContainer />            
         </ConvasAreaContainer>
     )
 }

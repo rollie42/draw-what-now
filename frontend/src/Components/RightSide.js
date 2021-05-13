@@ -30,7 +30,7 @@ function DoneButton() {
 
     const handler = async () => {
         if (activeBook?.entries && activeBook.entries.length % 2 === 1) {            
-            const data = getDrawing(layers)
+            const data = getDrawing(layers).split(';base64,')[1]
             for (const replay of replayDrawings) {
                 replay.drawParams.layerCanvas = undefined
                 replay.drawParams.workingCanvas = undefined

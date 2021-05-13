@@ -214,10 +214,7 @@ export const getDrawing = (layers) => {
         tempContext.drawImage(layer.workingCanvasRef.current, 0, 0)
     }
 
-    // const imgData = getImageData(tmpCanvas)
-    const imgData = tmpCanvas.toDataURL('image/png').split(';base64,')[1]
-    // document.removeElement(tmpCanvas)
-    return imgData
+    return tmpCanvas.toDataURL('image/png')
 }
 
 export default function Canvas(props) {
