@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react'
-import ReactDOM from 'react-dom'
 
 export function capitalize(s) {
     return s[0].toUpperCase() + s.slice(1);
@@ -12,7 +11,6 @@ export function sleep(ms) {
 export function contextsToProps(contexts) {
     const props = {}
     for (const [key, value] of Object.entries(contexts)) {
-        // eslint-disable-next-line react-hooks/rules-of-hooks
         const [getter, setter] = React.useContext(value)
         props[key] = getter
         props['set' + capitalize(key)] = setter
@@ -27,7 +25,6 @@ export function usePrevState(state) {
 
     useEffect(() => {
         if (state !== curState) {
-            console.log('state change internal')
             setCurState(state)         
         }
     }, [state])

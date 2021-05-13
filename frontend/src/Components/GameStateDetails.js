@@ -54,7 +54,6 @@ function DoneButton() {
     const [description] = React.useContext(Context.DescriptionContext)
     const [replayDrawings, setReplayDrawings] = React.useContext(Context.ReplayDrawingsContext)
 
-    console.log(activeBook, activeBook?.entries)
     const handler = async () => {
         if (activeBook?.entries && activeBook.entries.length % 2 === 1) {
             // not my favorite way of doing this
@@ -64,7 +63,6 @@ function DoneButton() {
                 replay.drawParams.workingCanvas = undefined
             }
 
-            console.log(replayDrawings)
 
             await GameApi.UploadDrawing(data, gameState.id, activeBook.creator.name, JSON.stringify(replayDrawings), user)
             setReplayDrawings([])
@@ -122,7 +120,6 @@ function PresentNextTestButton() {
 
     const handler = async () => {
         const s = gameState.presentationState
-        console.log(s)
 
         if (s.pageNumber === 1) {
             s.bookOwner = gameState.players.find(p => p.name !== s.bookOwner).name

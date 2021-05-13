@@ -1,13 +1,15 @@
 const hostname = window && window.location && window.location.hostname;
 
-var backendHost = 'http://localhost:4000';
+var backendHost = 'http://localhost:4000'
 // TODO: should this be wss?
 var wsHost = 'ws://localhost:4000'
 
 if (hostname.includes('drawwhatnow')) {
-    backendHost = 'https://api.drawwhatnow.com';
-    wsHost = 'wss://api.drawwhatnow.com';
+    backendHost = 'https://api.drawwhatnow.com'
+    wsHost = 'wss://api.drawwhatnow.com'
 }
+
+// backendHost = 'https://api.drawwhatnow.com'
 
 async function Post(endpoint, body) {
     const response = await fetch(`${backendHost}/${endpoint}`, {

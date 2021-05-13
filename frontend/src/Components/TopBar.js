@@ -5,6 +5,8 @@ import * as GameApi from '../GameApi'
 import { JoinGameDialog, CreateGameDialog } from './GameDialogs'
 import {TutorialDialog} from './Turorial'
 import { ImageButton, Button } from '../Controls'
+import { RunIntegrationTest } from '../IntegrationTest'
+
 import CreateGameImage from '../images/create-game.png'
 import JoinGameImage from '../images/join-game.png'
 import ExitGameImage from '../images/exit.png'
@@ -82,6 +84,17 @@ function Help() {
     )
 }
 
+function Test() {
+    const clickHandler = async () => {
+        await RunIntegrationTest()
+    }
+    return (
+        <TopControlContainer>
+            <TopBarImageButton onClick={clickHandler} image={HelpImage} ></TopBarImageButton>
+        </TopControlContainer>
+    )
+}
+
 const TopBarContainer = styled.div`
     width: 100%;
     height: 75px;
@@ -127,7 +140,6 @@ function Pup() {
     const [user] = React.useContext(Context.UserContext)
 
     var img = ""
-    console.log(gameState)
     const entries = gameState?.books?.map(book => book.entries).flat().filter(entry => entry.imageUrl)
     if (entries?.length) {
         const groups = groupBy(entries, entry => entry.author.name)
@@ -164,6 +176,7 @@ export default function TopBar() {
             }
             {gameState && <ExitGame />}
             <Help />
+            {false && <Test />}
         </TopBarContainer>
     )
 }

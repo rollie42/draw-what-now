@@ -217,7 +217,6 @@ export function fill(canvases, state) {
 }
 
 export const clearSelection = ({layerCanvas, workingCanvas, uiCanvas}, drawingContext) => {
-    console.log("Clear selection...?")
     drawingContext.selection = undefined    
     clear(uiCanvas)
 }
@@ -259,7 +258,6 @@ function move(canvases, state) {
         return true
     }
 
-    console.log(selection)
 
     if (!state.workingImg) {
         // Beginning of operation

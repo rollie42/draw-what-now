@@ -58,7 +58,6 @@ export function GameSummary(props) {
         setUser(undefined)
         setOpen(false)
     }
-    console.log(open)
     return (
         <DialogContainer style={{ overlay: { display: 'flex', alignItems: 'center', justifyContent: 'center' } }} onRequestClose={() => setOpen(false)} isOpen={open}>
             <div>

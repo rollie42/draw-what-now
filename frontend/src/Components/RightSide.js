@@ -28,7 +28,6 @@ function DoneButton() {
     const [layers] = React.useContext(Context.LayerContext)
     const [, setRecentSubmission] = React.useContext(Context.RecentSubmissionContext)
 
-    console.log(activeBook, activeBook?.entries)
     const handler = async () => {
         if (activeBook?.entries && activeBook.entries.length % 2 === 1) {            
             const data = getDrawing(layers)
@@ -37,10 +36,7 @@ function DoneButton() {
                 replay.drawParams.workingCanvas = undefined
             }
 
-            console.log(replayDrawings)
-
             const resp = await GameApi.UploadDrawing(data, gameState.id, activeBook.creator.name, JSON.stringify(replayDrawings), user)
-            console.log(resp)
             if (resp) { // TODO
                 setRecentSubmission(activeBook.creator.name)    
             }

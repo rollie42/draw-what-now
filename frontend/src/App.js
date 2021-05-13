@@ -22,7 +22,6 @@ function GameSubscriber() {
       const gs = Cookies.getJSON('gameState')
       const u = Cookies.getJSON('user')
       if (u && gs) {
-        console.log(undefined)
         setUser(u)
         setGameState(gs)
       }
@@ -34,11 +33,8 @@ function GameSubscriber() {
   useEffect(() => {
     const handler = async () => {
       if (!subscribed && gameState?.id) {
-        console.log("subscribing")      
         const sub = await GameApi.Subscribe(gameState.id, (message) => {
-          console.log(message.data)
           const newGameState = JSON.parse(message.data)
-          console.log(newGameState)
           setGameState(newGameState)
         })
         setSubscribed(sub)

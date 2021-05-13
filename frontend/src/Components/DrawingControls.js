@@ -74,7 +74,6 @@ function DescriptionLabel() {
     }
 
     useEffect(() => {
-        console.log(gameState)
         const handler = async () => {
             const newLabel = `${name} wrote:`
             if (newLabel !== label) {
@@ -116,7 +115,6 @@ function ImageLabel() {
         const presentationState = gameState.presentationState
         const book = gameState.books.find(b => b.creator.name === presentationState.bookOwner)
         var entry = book.entries[presentationState.pageNumber]
-        console.log(presentationState, book.entries)
         if (entry.description && presentationState.pageNumber > 0)
             entry = book.entries[presentationState.pageNumber - 1]
 

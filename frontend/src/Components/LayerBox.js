@@ -210,7 +210,6 @@ function VisibleToggle({layer}) {
 
     const toggleVisible = React.useCallback((e) => {
         if (layer.visible && layers.filter(l => l.visible).length == 1) {
-            console.log("You can't toggle off the last visible layer!")
             return
         }
         e.stopPropagation()
@@ -269,7 +268,6 @@ function Layer({layer}) {
         pushAction(action)
     }, [layers])
 
-    console.log(layer)
 
     React.useEffect(() => {
         if (renaming) {

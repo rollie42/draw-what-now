@@ -18,7 +18,6 @@ export function useCanvasProps(propsIn) {
 
     for (const [k, v] of attrs) {
         if (!(k in props)) {
-            // eslint-disable-next-line react-hooks/rules-of-hooks
             const [getter, setter] = React.useState(v)
             props[k] = getter
             props['set' + capitalize(k)] = setter
@@ -27,7 +26,6 @@ export function useCanvasProps(propsIn) {
 
     for (const ref of refs) {
         if (!(ref in props)) {
-            // eslint-disable-next-line react-hooks/rules-of-hooks
             props[ref] = React.useRef()
         }
     }

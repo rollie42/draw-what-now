@@ -46,9 +46,7 @@ export function AppContextProvider(props) {
     const [tasks, setTasks] = React.useState([])
     const [gameState, setGameState] = React.useState(null)
     const setGameStateWrapper = (gs) => {
-        console.log(gs)
         if (gs && gs.type !== "error") {
-            console.log(gs)
             Cookies.set("gameState", gs)            
             setGameState(new GameState(gs))
         } else {

@@ -328,7 +328,6 @@ export default function Canvas(props) {
 
         state.stage = DrawingStage.COMMIT
    
-        console.log('state: ', state)
         clear(workingCanvasRef.current)
         const action = new DrawAction(startingImg, mode, shape, state)
         pushAction(action)
@@ -500,7 +499,6 @@ export default function Canvas(props) {
         if (!replayList)
             return
 
-        console.log("replaying!")
 
         clear(layerCanvas)
 
@@ -523,7 +521,6 @@ export default function Canvas(props) {
                 fakeDrawing: drawing
             })
         }
-        console.log("done replay")
 
     }, [replayList])
 

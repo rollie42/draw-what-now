@@ -10,7 +10,6 @@ function ActionRow({action}) {
 }
 export default function ActionHistory() {
     const [actionHistory] = React.useContext(Context.ActionHistoryContext)
-    console.log(actionHistory)
     return (
         <div>
             <div>Actions</div>

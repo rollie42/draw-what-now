@@ -31,7 +31,7 @@ import io.ktor.websocket.*
 import io.ktor.auth.*
 import io.ktor.http.HttpStatusCode
 import io.ktor.sessions.*
-import io.ktor.routing.*
+import io.ktor.util.pipeline.*
 
 import java.time.Duration
 import java.time.Instant
@@ -44,6 +44,16 @@ fun main(args: Array<String>): Unit = io.ktor.server.cio.EngineMain.main(args)
 data class ErrorResponse(val message: String) {
     val type = "error"
 }
+
+fun verifyRequest(call: ApplicationCall, maxSizeKB: Long) {
+    val contentLength = call.request.header("content-length")!!.toLong()
+    if (contentLength > 1024 * maxSizeKB) {
+        throw Exception("request too large.")
+    }
+}
+
+fun verifySmallRequest(call: ApplicationCall) = verifyRequest(call, 5)
+fun verifyLargeRequest(call: ApplicationCall) = verifyRequest(call, 1024 * 2)
 
 fun Application.module() {
     install(CORS) {
@@ -67,10 +77,10 @@ fun Application.module() {
         masking = false
     }
 
-    
-
     routing {
         val storageApi = StorageApi()
+
+        // TODO: concurrent
         val games = mutableMapOf<GameState, MutableStateFlow<String>>()
 
         GlobalScope.launch {
@@ -88,17 +98,20 @@ fun Application.module() {
             val gameState = games.keys.first{ it.id == gameId }
             call.respond(gameState)
         }
-        post("/login") {
+        post("/login") {            
+            verifySmallRequest(call)
             val login = call.receive<backend.request.Login>()
             call.respond(GameUser(login.name))
         }
-        post("/createGame") {
+        post("/createGame") {            
+            verifySmallRequest(call)
             val params = call.receive<backend.request.CreateGame>()
             val gameState = GameState(params.gameName, params.user.name)
             games[gameState] = MutableStateFlow(gameState.serialize())
             call.respond(gameState)
         }
         post("/joinGame") {
+            verifySmallRequest(call)
             val params = call.receive<backend.request.JoinGame>()
             val gameState = games.keys.firstOrNull{ it.name == params.gameName }
             if (gameState == null)
@@ -116,6 +129,7 @@ fun Application.module() {
             }
         }
         post("/startGame") {
+            verifySmallRequest(call)
             val gameSettings = call.receive<backend.request.StartGame>()
             val gameState = games.keys.first{ it.id == gameSettings.gameId }
             gameState.startGame(gameSettings.settings)
@@ -124,6 +138,7 @@ fun Application.module() {
             call.respond(gameState)
         }
         post("/uploadDrawing") {
+            verifyLargeRequest(call)
             val drawing = call.receive<backend.request.UploadDrawing>()
             val bytes = Base64.getDecoder().decode(drawing.imageData)
 
@@ -137,6 +152,7 @@ fun Application.module() {
             call.respond(gameState)
         }
         post("/uploadDescription") {
+            verifySmallRequest(call)
             val description = call.receive<backend.request.UploadDescription>()
             val gameState = games.keys.first{ it.id == description.gameId }
             val book = gameState.books.first { it.creator.name == description.bookCreator }
@@ -145,6 +161,7 @@ fun Application.module() {
             call.respond(gameState)
         }
         post("/undoSubmission") {
+            verifySmallRequest(call)
             val params = call.receive<backend.request.UndoSubmission>()
             val gameState = games.keys.first{ it.id == params.gameId }
             val book = gameState.books.first { it.creator.name == params.bookCreator }
@@ -157,6 +174,7 @@ fun Application.module() {
             }
         }
         post("/startPresentation") {
+            verifySmallRequest(call)
             val params = call.receive<backend.request.StartPresentation>()
             val gameState = games.keys.first{ it.id == params.gameId }
             gameState.startPresentation()
@@ -164,6 +182,7 @@ fun Application.module() {
             call.respond(gameState)
         }
         post("/presentNext") {
+            verifySmallRequest(call)
             val params = call.receive<backend.request.PresentNext>()
             val gameState = games.keys.first{ it.id == params.gameId }
             gameState.presentNext()
@@ -171,6 +190,7 @@ fun Application.module() {
             call.respond(gameState)
         }
         post("/endGame") {
+            verifySmallRequest(call)
             val params = call.receive<backend.request.EndGame>()
             val gameState = games.keys.first{ it.id == params.gameId }
             gameState.endGame()

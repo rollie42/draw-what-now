@@ -142,8 +142,6 @@ export function CreateGameDialog(props) {
         const newUser = await GameApi.Login(userName)
         await GameApi.CreateGame(gameName, newUser)
         const newGameState = await GameApi.JoinGame(gameName, newUser)
-        console.log(newUser)
-        console.log(newGameState)
         
         setUser(newUser)
         setGameState(newGameState)

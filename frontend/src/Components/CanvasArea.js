@@ -48,12 +48,9 @@ function Description() {
     const [description, setDescription] = React.useContext(Context.DescriptionContext)
 
     useEffect(() => {
-        console.log(activeBook)
         if (!activeBook?.entries || activeBook.entries.length % 2 === 0) {
-            console.log(1, lastEntry(activeBook))
             setDescription("")
         } else {
-            console.log(2, lastEntry(activeBook))
             setDescription(lastEntry(activeBook).description)
         }
     }, [activeBook])
@@ -226,7 +223,6 @@ export default function CanvasArea() {
     const canvasProps = useCanvasProps(contextProps)
 
     useEffect(() => {
-        console.log("requestReplay", requestReplay)
         if (requestReplay) {
             setRequestReplay(false)
         }

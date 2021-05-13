@@ -24,6 +24,7 @@ export class DrawAction extends Action {
         super()
         this.image = image
         this.mode = mode
+
         this.shape = shape
         this.state = state
     }
@@ -33,7 +34,6 @@ export class DrawAction extends Action {
     undo = (canvases) => {
         // TODO: undo/redo of select doesn't update the drawing context, but needs to
         const canvasCtx = canvases.layerCanvas.getContext('2d')
-        console.log(canvasCtx, this.image, this.state)
         canvasCtx.putImageData(this.image, 0, 0)
     }
 
