@@ -159,7 +159,7 @@ const BookTitleContainer = styled.div`
     position: fixed;
     color: #7F0037;
     transform: translate(130px, -15px) rotate(-18deg);    
-    z-index: 3;
+    z-index: 20;
 `
 
 function BookTitle() {
@@ -235,7 +235,7 @@ function ToolSelector() {
 }
 
 const ShapeOptionsContainer = styled.div`
-    z-index: 2;
+    z-index: 20;
     position: absolute;
     background-color: #FFE895;
     top: 0px;
