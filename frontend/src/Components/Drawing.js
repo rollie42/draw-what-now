@@ -78,6 +78,10 @@ const drawCurve = (points, path) => {
     path.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y)
 }
 
+function pressureToLineWidth(pressure) {
+    return Math.max(1, Math.min(72, pressure * 77 - 5));
+}
+
 function drawPath(canvases, state) {
     const canvas = state.stage === DrawingStage.DEFINE && state.mode !== DrawingMode.ERASE ? canvases.workingCanvas : canvases.layerCanvas
     state.paths = state.paths ?? []
@@ -86,12 +90,24 @@ function drawPath(canvases, state) {
     const points = state.points
 
     var path = paths[paths.length-1]
-    const lineWidth = state.drawingContext.lineWidth
+    const lineWidth = state.curEvent.pen 
+        ? pressureToLineWidth(state.curEvent.pressure)
+        : state.drawingContext.lineWidth
 
     if (state.stage === DrawingStage.DEFINE) {
-        const curPoint = state.curEvent.position
+        const curPoint = state.curEvent.position                
         points.push(curPoint)
         if (path === undefined || lineWidth !== path.lineWidth) {
+            if (path !== undefined) {
+                // bridge between 2 paths - draw with the mean line width
+                const linkingPath = new Path2D()
+                const prevPt = points[points.length - 2]
+                linkingPath.moveTo(prevPt.x, prevPt.y)
+                drawCurve(points, linkingPath)
+                linkingPath.lineWidth = (lineWidth + path.lineWidth) / 2
+                linkingPath.linking = true
+                paths.push(linkingPath)
+            }
             path = new Path2D()
             path.moveTo(curPoint.x, curPoint.y)
             path.lineWidth = lineWidth
@@ -114,6 +130,11 @@ function drawPath(canvases, state) {
         
         if (state.stage === DrawingStage.DEFINE) {
             drawCurve(points, path)
+        }
+
+        if (state.stage === DrawingStage.COMMIT) {
+            // console.log(points)
+            // console.log(paths)
         }
         
         const context = canvas.getContext('2d')

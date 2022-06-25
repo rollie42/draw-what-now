@@ -29,6 +29,7 @@ dependencies {
     implementation("com.google.guava:guava:29.0-jre")
     implementation("ch.qos.logback:logback-classic:1.2.3")
     implementation("com.google.cloud:google-cloud-storage:1.113.8")
+    implementation("org.litote.kmongo:kmongo-coroutine:4.2.8")
 
     implementation(ktor())
     implementation(ktor("-auth"))

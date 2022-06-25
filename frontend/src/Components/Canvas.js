@@ -53,6 +53,7 @@ const StyledCanvas = styled.canvas`
 
 const UICanvas = styled(StyledCanvas)`
     z-index: 10;
+    touch-action: none;
 `
 
 const clear = (canvas) => {
@@ -65,9 +66,43 @@ export const _getPos = (canvas, event) => {
     return { x: Math.floor(position.clientX - rect.left), y: Math.floor(position.clientY - rect.top) }
 }
 
-const mouseEvent = (canvas) => {
+async function* watchMouseEvents(canvas, cancelled) {
+    var res = undefined
+    
+    const makeHandler = type => event => {
+        // console.log(type, event.type)
+        if (event.type === 'pointerup' && event.button !== 0)
+            return
+
+        if (event.cancelable)
+            event.preventDefault()
+
+        res?.(new MouseEvent(type, _getPos(canvas, event), event.pointerType === 'pen', event.pressure))
+    }
+
+    const moveHandler = makeHandler(MouseEventType.MOVE)
+    const upHandler = makeHandler(MouseEventType.UP)
+
+    canvas.addEventListener('pointermove', moveHandler)
+    document.addEventListener('pointerup', upHandler)
+    document.addEventListener('pointercancel', () => console.log('pointercancel'))
+
+    cancelled.then(() => {
+        canvas.removeEventListener('pointermove', moveHandler)
+        document.removeEventListener('pointerup', upHandler)
+    })
+    // document.addEventListener('pointerout', () => console.log('pointerout'))
+    // document.addEventListener('pointerleave', () => console.log('pointerleave'))
+    // document.addEventListener('lostpointercapture', () => console.log('lostpointercapture'))
+
+    while (true) {
+        yield await new Promise(resolve => res = resolve)
+    }
+}
+
+const mouseEvent2 = (canvas) => {
     return new Promise((resolve, reject) => {
-        const makeHandler = type => event => {
+        const makeHandler = type => event => {            
             if (event.type === 'pointerup' && event.button !== 0)
                 return
 
@@ -84,9 +119,14 @@ const mouseEvent = (canvas) => {
 
         canvas.addEventListener('pointermove', moveHandler)
         document.addEventListener('pointerup', upHandler)
+        // document.addEventListener('pointercancel', () => console.log('pointercancel'))
+        // document.addEventListener('pointerout', () => console.log('pointerout'))
+        // document.addEventListener('pointerleave', () => console.log('pointerleave'))
+        // document.addEventListener('lostpointercapture', () => console.log('lostpointercapture'))
     })
 }
 
+// This is just used for replay
 const draw = async (drawParams) => {
     const { startPoint, workingCanvas, layerCanvas, uiCanvas, mode, shape, fakeDrawing, layer, uiCanvasBackupBuffer } = drawParams
     const workingContext = workingCanvas.getContext('2d')
@@ -288,7 +328,7 @@ export default function Canvas(props) {
         }
     }
 
-    const startDrawing = React.useCallback(async (event) => {
+    const startDrawing = React.useCallback(async (event) => {        
         if (event.button !== 0 || staticImage)
             return
 
@@ -303,13 +343,16 @@ export default function Canvas(props) {
             event.pointerType === 'pen', 
             event.pressure)
 
-        const drawShape = drawFn(mode, shape)
+        const drawSomething = drawFn(mode, shape)
         const state = {
             stage: DrawingStage.DEFINE,
             mode,
             firstEvent,
             curEvent: firstEvent
         }
+
+        let cancel, cancelled = new Promise(resolve => cancel = resolve)
+        const mouseEvents = watchMouseEvents(uiCanvasRef.current, cancelled)
         
         while (true) {
             const ev = state.curEvent
@@ -318,11 +361,13 @@ export default function Canvas(props) {
             
             state.drawingContext = drawingContextRef.current
             clear(workingCanvasRef.current)
-            drawShape(getCanvases(), state)            
+            drawSomething(getCanvases(), state)            
             
-            state.curEvent = await mouseEvent(uiCanvasRef.current)   
+            const task = await mouseEvents.next()
+            state.curEvent = task.value
         }
 
+        cancel?.()
         state.stage = DrawingStage.COMMIT
    
         clear(workingCanvasRef.current)
@@ -375,6 +420,9 @@ export default function Canvas(props) {
                 ctx.translate(0.5, 0.5) // TODO...why?
                 ctx.globalAlpha = 1;
                 ctx.imageSmoothingEnabled = false;
+                ctx.lineCap = 'round'
+                ctx.lineJoin = 'miter' // round, bevel, miter (d); I think this doesn't do anything with how we have paths...
+                // ctx.miterLimit = 50 // 10 (d)
             }
         }
         
