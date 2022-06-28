@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { sleep } from '../Utils'
+import { clearCanvas, makeOpaque, sleep } from '../Utils'
 import styled from 'styled-components'
 import PaintBrushImg from '../images/icons/paint-brush.png'
 import { DrawAction, PasteAction } from '../History'
@@ -56,9 +56,11 @@ const UICanvas = styled(StyledCanvas)`
     touch-action: none;
 `
 
-const clear = (canvas) => {
-    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
-}
+const HiddenCanvas = styled(StyledCanvas)`
+    z-index: 9;
+    display: none;
+    touch-action: none;
+`
 
 export const _getPos = (canvas, event) => {
     const rect = canvas.getBoundingClientRect()
@@ -131,6 +133,7 @@ const draw = async (drawParams) => {
     const { startPoint, workingCanvas, layerCanvas, uiCanvas, mode, shape, fakeDrawing, layer, uiCanvasBackupBuffer } = drawParams
     const workingContext = workingCanvas.getContext('2d')
     const layerContext = layerCanvas.getContext('2d')
+    const hiddenContext = hiddenCanvas.getContext('2d')
     const uiContext = uiCanvas.getContext('2d')
     layer.backupBuffer = undefined
     uiCanvasBackupBuffer.current = undefined
@@ -181,7 +184,7 @@ const draw = async (drawParams) => {
             const dy = mouseEvt.position.y - startPoint.y
 
             // clear temp canvas
-            clear(workingCanvas)
+            clearCanvas(workingCanvas)
             
             drawFn({
                 context: mouseEvt.up() ? layerContext : workingContext,
@@ -264,11 +267,11 @@ export default function Canvas(props) {
     const canvasContainerRef = React.useRef()
     const uiCanvasBackupBuffer = React.useRef(undefined)    
 
-    const { activeLayerCanvasRef, workingCanvasRef, uiCanvasRef } = props    
+    const { activeLayerCanvasRef, workingCanvasRef, hiddenCanvasRef, uiCanvasRef } = props    
     const useEffectAsync = (fn, deps) => {
         useEffect(() => {
             const handler = async () => {
-                fn(activeLayerCanvasRef.current, workingCanvasRef.current, uiCanvasRef.current)
+                fn(activeLayerCanvasRef.current, workingCanvasRef.current, hiddenCanvasRef.current, uiCanvasRef.current)
             }
 
             handler()
@@ -284,6 +287,7 @@ export default function Canvas(props) {
     const getCanvases = () => { return {
         layerCanvas: activeLayerCanvasRef.current,
         workingCanvas: workingCanvasRef.current,
+        hiddenCanvas: hiddenCanvasRef.current,
         uiCanvas: uiCanvasRef.current
     }}
 
@@ -324,6 +328,7 @@ export default function Canvas(props) {
             ...props,
             layerCanvas: activeLayerCanvasRef.current,
             workingCanvas: workingCanvasRef.current,
+            hiddenCanvas: hiddenCanvasRef.current,
             uiCanvas: uiCanvasRef.current
         }
     }
@@ -360,7 +365,7 @@ export default function Canvas(props) {
                 break
             
             state.drawingContext = drawingContextRef.current
-            clear(workingCanvasRef.current)
+            clearCanvas(workingCanvasRef.current)
             drawSomething(getCanvases(), state)            
             
             const task = await mouseEvents.next()
@@ -370,7 +375,7 @@ export default function Canvas(props) {
         cancel?.()
         state.stage = DrawingStage.COMMIT
    
-        clear(workingCanvasRef.current)
+        clearCanvas(workingCanvasRef.current)
         const action = new DrawAction(startingImg, mode, shape, state)
         pushAction(action)
         const res = action.exec(getCanvases())
@@ -391,7 +396,8 @@ export default function Canvas(props) {
                     canvas.width = w
                     canvas.height = h
                     setCanvas(canvas)
-                    putImageData(canvas, img)
+                    if (img)
+                        putImageData(canvas, img)
                 }
 
                 for (const layer of layers) {
@@ -404,13 +410,14 @@ export default function Canvas(props) {
                     resizeCanvas(layer.canvasRef.current, layer.backupBuffer.canvas)
                     resizeCanvas(layer.workingCanvasRef.current, layer.backupBuffer.workingCanvas)
                 }
+                resizeCanvas(hiddenCanvasRef.current)
                 resizeCanvas(uiCanvasRef.current, uiCanvasBackupBuffer.current)
             // }, 500)
         }
         window.addEventListener("resize", handleResize)
     }, [])
     // Init canvases
-    useEffectAsync(async (layerCanvas, workingCanvas, uiCanvas) => {
+    useEffectAsync(async (layerCanvas, workingCanvas, hiddenCanvas, uiCanvas) => {
         const setCanvas = (canvas) => {
             if (!canvas.init) {
                 canvas.init = true
@@ -420,8 +427,8 @@ export default function Canvas(props) {
                 ctx.translate(0.5, 0.5) // TODO...why?
                 ctx.globalAlpha = 1;
                 ctx.imageSmoothingEnabled = false;
-                ctx.lineCap = 'round'
-                ctx.lineJoin = 'miter' // round, bevel, miter (d); I think this doesn't do anything with how we have paths...
+                ctx.lineCap = 'round' // butt (d), round, square
+                ctx.lineJoin = 'bevel' // round, bevel, miter (d); I think this doesn't do anything with how we have paths...
                 // ctx.miterLimit = 50 // 10 (d)
             }
         }
@@ -438,11 +445,12 @@ export default function Canvas(props) {
 
         setCanvas(layerCanvas)
         setCanvas(workingCanvas)
+        setCanvas(hiddenCanvas)
         setCanvas(uiCanvas)
     }, [canvasDimensions])
 
     // Handle mode change (requires cleanup of working buffer)
-    useEffectAsync((layerCanvas, workingCanvas, uiCanvas) => {
+    useEffectAsync((layerCanvas, workingCanvas, hiddenCanvas, uiCanvas) => {
         if (![DrawingMode.SELECT, DrawingMode.MOVE].includes(mode)) {
             // This operation can't work on selection; write
             // whatever is in working buffer to layer
@@ -452,7 +460,7 @@ export default function Canvas(props) {
     }, [mode])        
 
     // Handle copy
-    useEffectAsync((layerCanvas, workingCanvas, uiCanvas) => {
+    useEffectAsync((layerCanvas, workingCanvas, hiddenCanvas, uiCanvas) => {
         if (requestCopy) {
             const selection = drawingContextRef.current.selection
             if (selection) {
@@ -465,7 +473,7 @@ export default function Canvas(props) {
     }, [requestCopy])
 
     // Handle paste
-    useEffectAsync((layerCanvas, workingCanvas, uiCanvas) => {
+    useEffectAsync((layerCanvas, workingCanvas, hiddenCanvas, uiCanvas) => {
         if (requestPaste) {
             const copiedImg = drawingContextRef.current.copiedImage
             if (copiedImg) {
@@ -484,7 +492,7 @@ export default function Canvas(props) {
     }, [requestPaste])
 
     // Handle delete
-    useEffectAsync((layerCanvas, workingCanvas, uiCanvas) => {
+    useEffectAsync((layerCanvas, workingCanvas, hiddenCanvas, uiCanvas) => {
         if (requestDelete) {
             const selection = drawingContextRef.current.selection
             if (selection) {
@@ -497,9 +505,9 @@ export default function Canvas(props) {
     }, [requestDelete])
 
     // Load static image if provided
-    useEffectAsync(async (layerCanvas, workingCanvas, uiCanvas) => {
+    useEffectAsync(async (layerCanvas, workingCanvas, hiddenCanvas, uiCanvas) => {
         if (staticImage) {
-            clear(layerCanvas)
+            clearCanvas(layerCanvas)
             if (staticImage !== "empty") {
                 let img = new Image()
                 img.crossOrigin = "Anonymous";
@@ -511,11 +519,11 @@ export default function Canvas(props) {
     }, [staticImage])
 
     // Handle clear request
-    useEffectAsync(async (layerCanvas, workingCanvas, uiCanvas) => {
+    useEffectAsync(async (layerCanvas, workingCanvas, hiddenCanvas, uiCanvas) => {
         if (requestClear) {
             clearSelection(getCanvases(), drawingContextRef.current)
             for (const layer of layers) {
-                clear(layer.canvasRef.current)
+                clearCanvas(layer.canvasRef.current)
             }
             setRequestClear(false)
             // TODO: actionHistory
@@ -523,7 +531,7 @@ export default function Canvas(props) {
     }, [requestClear])
 
     // Handles undo/redo
-    useEffectAsync(async (layerCanvas, workingCanvas, uiCanvas) => {
+    useEffectAsync(async (layerCanvas, workingCanvas, hiddenCanvas, uiCanvas) => {
         const idx = lastActiveUndoIdx(actionHistory)
         if (requestUndo && idx >= 0) {
             actionHistory[idx].active = false
@@ -540,12 +548,12 @@ export default function Canvas(props) {
     }, [requestUndo, requestRedo, actionHistory])
 
     // Handle replay
-    useEffectAsync(async (layerCanvas, workingCanvas, uiCanvas) => {
+    useEffectAsync(async (layerCanvas, workingCanvas, hiddenCanvas, uiCanvas) => {
         if (!replayList)
             return
 
 
-        clear(layerCanvas)
+        clearCanvas(layerCanvas)
 
         const setContextData = (context, drawing) => {
             context.lineWidth = drawing.lineWidth
@@ -562,6 +570,7 @@ export default function Canvas(props) {
                 ...params,
                 workingCanvas,
                 layerCanvas,
+                hiddenCanvas,
                 uiCanvas,
                 fakeDrawing: drawing
             })
@@ -569,23 +578,25 @@ export default function Canvas(props) {
 
     }, [replayList])
 
-    const setCanvas = React.useCallback((canvas) => {
+    const setCanvas = React.useCallback((canvas, opaque = false) => {
         const context = canvas.getContext('2d')
         context.globalCompositeOperation = mode === DrawingMode.ERASE
             ? 'destination-out'
             : 'source-over'//'hard-light'
+        const color = opaque ? makeOpaque(activeColor) : activeColor;
         context.lineWidth = lineWidth
-        context.color = activeColor
-        context.fillStyle = activeColor
-        context.strokeStyle = activeColor
+        context.color = color
+        context.fillStyle = color
+        context.strokeStyle = color
         canvas.style.cursor = cursorIcons[mode]
     }, [activeColor, lineWidth, layers, mode])
 
     // Handle property change
-    useEffectAsync(async (layerCanvas, workingCanvas, uiCanvas) => {        
+    useEffectAsync(async (layerCanvas, workingCanvas, hiddenCanvas, uiCanvas) => {        
 
         setCanvas(layerCanvas)
         setCanvas(workingCanvas)
+        setCanvas(hiddenCanvas, true)
         setCanvas(uiCanvas)
     }, [activeColor, lineWidth, layers, mode])
 
@@ -601,6 +612,7 @@ export default function Canvas(props) {
                 <StyledCanvas hidden={!v.visible} id={v.id} ref={v.canvasRef}/>
                 <StyledCanvas hidden={!v.visible} id={'working_'+v.id} ref={v.workingCanvasRef}/>                
                 </React.Fragment>)}
+            <HiddenCanvas id="hiddenCanvas" ref={hiddenCanvasRef} />
             <UICanvas id="uiCanvas" ref={uiCanvasRef} onPointerDown={startDrawing} />
         </CanvasContainer>
     )

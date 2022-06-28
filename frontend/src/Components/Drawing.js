@@ -1,5 +1,6 @@
 import {DrawingMode, MouseEventType, Shapes, _getPos} from './Canvas'
 import FloodFill from 'q-floodfill'
+import { clearCanvas, getAlpha } from '../Utils'
 
 export const DrawingStage = {
     DEFINE: 'define',
@@ -75,6 +76,7 @@ const drawCurve = (points, path) => {
 
     var cp2x = p2.x - (p3.x - p1.x) / 6 * t
     var cp2y = p2.y - (p3.y - p1.y) / 6 * t
+    //console.log(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y)
     path.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y)
 }
 
@@ -82,8 +84,9 @@ function pressureToLineWidth(pressure) {
     return Math.max(1, Math.min(72, pressure * 77 - 5));
 }
 
-function drawPath(canvases, state) {
-    const canvas = state.stage === DrawingStage.DEFINE && state.mode !== DrawingMode.ERASE ? canvases.workingCanvas : canvases.layerCanvas
+function drawPath(canvases, state) {    
+    const canvas = state.mode === DrawingMode.ERASE ? canvases.layerCanvas : canvases.hiddenCanvas
+    clearCanvas(canvases.hiddenCanvas)
     state.paths = state.paths ?? []
     state.points = state.points ?? []
     const paths = state.paths
@@ -95,7 +98,8 @@ function drawPath(canvases, state) {
         : state.drawingContext.lineWidth
 
     if (state.stage === DrawingStage.DEFINE) {
-        const curPoint = state.curEvent.position                
+        const curPoint = state.curEvent.position
+        curPoint.lineWidth = lineWidth                
         points.push(curPoint)
         if (path === undefined || lineWidth !== path.lineWidth) {
             if (path !== undefined) {
@@ -131,11 +135,6 @@ function drawPath(canvases, state) {
         if (state.stage === DrawingStage.DEFINE) {
             drawCurve(points, path)
         }
-
-        if (state.stage === DrawingStage.COMMIT) {
-            // console.log(points)
-            // console.log(paths)
-        }
         
         const context = canvas.getContext('2d')
 
@@ -145,6 +144,23 @@ function drawPath(canvases, state) {
             context.stroke(p)
             context.lineWidth = lineWidth
         })
+
+        points.forEach(p => {            
+            const prevLineWidth = context.lineWidth
+            context.beginPath()
+            context.lineWidth = 1
+            context.arc(p.x, p.y, p.lineWidth / 2, 0, 2 * Math.PI)
+            context.fill()            
+            context.lineWidth = prevLineWidth
+        })
+    }
+    
+    if (state.mode !== DrawingMode.ERASE) {
+        const commitCanvas = state.stage === DrawingStage.COMMIT ? canvases.layerCanvas : canvases.workingCanvas;
+        const commitCtx = commitCanvas.getContext('2d')
+        commitCtx.globalAlpha = getAlpha(commitCtx.strokeStyle)            
+        commitCtx.drawImage(canvas, 0, 0)
+        commitCtx.globalAlpha = 1
     }
 }
 

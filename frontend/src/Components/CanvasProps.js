@@ -14,7 +14,7 @@ export function useCanvasProps(propsIn) {
         ['shape', Shapes.SQUARE],
     ]
 
-    const refs = ['activeLayerCanvasRef', 'workingCanvasRef', 'uiCanvasRef']
+    const refs = ['activeLayerCanvasRef', 'workingCanvasRef', 'hiddenCanvasRef', 'uiCanvasRef']
 
     for (const [k, v] of attrs) {
         if (!(k in props)) {

@@ -1,0 +1,13 @@
+steps:
+# Build the container image
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/drawing-game-301412/drawing-game-webapp', '.']
+# Push the container image to Container Registry
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'gcr.io/drawing-game-301412/drawing-game-webapp']
+# Deploy container image to Cloud Run
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args: ['run', 'deploy', 'drawing-game-webapp', '--image', 'gcr.io/drawing-game-301412/drawing-game-webapp', '--region', 'us-west1']
+images:
+- gcr.io/drawing-game-301412/drawing-game-webapp
